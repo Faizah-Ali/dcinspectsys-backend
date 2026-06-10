@@ -21,13 +21,15 @@ public class ApplicationController {
     public PaginatedResponse<ApplicationResponse> getApplications(
             @RequestParam String owner,
             @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
 
         return applicationService.getApplications(
                 owner,
                 status,
+                search,
                 page,
                 size
         );

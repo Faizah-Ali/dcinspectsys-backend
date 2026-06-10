@@ -11,6 +11,7 @@ public interface ApplicationService {
     PaginatedResponse<ApplicationResponse> getApplications(
             String owner,
             String status,
+            String search,
             int page,
             int size
     );

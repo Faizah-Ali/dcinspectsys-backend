@@ -21,6 +21,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     public PaginatedResponse<ApplicationResponse> getApplications(
             String owner,
             String status,
+            String search,
             int page,
             int size
     ) {
@@ -28,6 +29,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         return applicationDAO.getApplications(
                 owner,
                 status,
+                search,
                 page,
                 size
         );

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Repository
@@ -20,6 +21,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
     public PaginatedResponse<ApplicationResponse> getApplications(
             String owner,
             String status,
+            String search,
             int page,
             int size
     ) {
@@ -34,7 +36,48 @@ public class ApplicationDAOImpl implements ApplicationDAO {
 
         int offset = (page - 1) * size;
 
-        String query = """
+        boolean hasStatus = status != null && !status.isBlank();
+        boolean hasSearch = search != null && !search.isBlank();
+
+        // Build the WHERE clause once and reuse it for both data and count queries
+        // so that totalRecords reflects the same filters (owner + status + search).
+        StringBuilder whereClause = new StringBuilder(" WHERE owner = ? ");
+        List<Object> filterParams = new ArrayList<>();
+        filterParams.add(owner);
+
+        if (hasStatus) {
+            whereClause.append(" AND status = ? ");
+            filterParams.add(status);
+        }
+
+        if (hasSearch) {
+            // Case-insensitive LIKE for text fields, CAST(... AS TEXT) for numeric
+            // fields. applied_date is also cast to TEXT so this works whether the
+            // column is DATE/TIMESTAMP or already textual.
+            whereClause.append(
+                    " AND ( "
+                            + " LOWER(username) LIKE LOWER(?) "
+                            + " OR LOWER(casetype) LIKE LOWER(?) "
+                            + " OR CAST(reg_no AS TEXT) LIKE ? "
+                            + " OR CAST(reg_yr AS TEXT) LIKE ? "
+                            + " OR CAST(diary_no AS TEXT) LIKE ? "
+                            + " OR CAST(diary_yr AS TEXT) LIKE ? "
+                            + " OR LOWER(case_title) LIKE LOWER(?) "
+                            + " OR LOWER(ecourt_fee_id) LIKE LOWER(?) "
+                            + " OR LOWER(CAST(applied_date AS TEXT)) LIKE LOWER(?) "
+                            + " OR LOWER(status) LIKE LOWER(?) "
+                            + " OR LOWER(case_status) LIKE LOWER(?) "
+                            + " ) "
+            );
+
+            String like = "%" + search.trim() + "%";
+            // 11 placeholders -> 11 bound values, all parameterized (no concat).
+            for (int i = 0; i < 11; i++) {
+                filterParams.add(like);
+            }
+        }
+
+        String dataQuery = """
             SELECT
                 username,
                 casetype,
@@ -52,14 +95,9 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                 court_fee_amount,
                 court_fee_reason
             FROM judl.INSPECTION_USER_ONLINE
-            WHERE owner = ?
-            """;
-
-        if (status != null && !status.isBlank()) {
-            query += " AND status = ? ";
-        }
-
-        query += """
+            """
+                + whereClause
+                + """
             ORDER BY diary_yr DESC, diary_no DESC
             LIMIT ? OFFSET ?
             """;
@@ -67,40 +105,30 @@ public class ApplicationDAOImpl implements ApplicationDAO {
         String countQuery = """
             SELECT COUNT(*)
             FROM judl.INSPECTION_USER_ONLINE
-            WHERE owner = ?
-            """;
+            """
+                + whereClause;
 
-        if (status != null && !status.isBlank()) {
-            countQuery += " AND status = ? ";
+        // Count uses only filter params.
+        Long totalRecords = jdbcTemplate.queryForObject(
+                countQuery,
+                Long.class,
+                filterParams.toArray()
+        );
+
+        if (totalRecords == null) {
+            totalRecords = 0L;
         }
 
-        Long totalRecords;
-
-        if (status != null && !status.isBlank()) {
-
-            totalRecords = jdbcTemplate.queryForObject(
-                    countQuery,
-                    Long.class,
-                    owner,
-                    status
-            );
-
-        } else {
-
-            totalRecords = jdbcTemplate.queryForObject(
-                    countQuery,
-                    Long.class,
-                    owner
-            );
-        }
+        // Data uses filter params + LIMIT + OFFSET.
+        List<Object> dataParams = new ArrayList<>(filterParams);
+        dataParams.add(size);
+        dataParams.add(offset);
 
         List<ApplicationResponse> applications = jdbcTemplate.query(
 
-                query,
+                dataQuery,
 
-                status != null && !status.isBlank()
-                        ? new Object[]{owner, status, size, offset}
-                        : new Object[]{owner, size, offset},
+                dataParams.toArray(),
 
                 (rs, rowNum) -> {
 
