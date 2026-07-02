@@ -22,6 +22,8 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             String owner,
             String status,
             String search,
+            String caseStatus,
+            String applicationStatus,
             int page,
             int size
     ) {
@@ -38,9 +40,11 @@ public class ApplicationDAOImpl implements ApplicationDAO {
 
         boolean hasStatus = status != null && !status.isBlank();
         boolean hasSearch = search != null && !search.isBlank();
+        boolean hasCaseStatus = caseStatus != null && !caseStatus.isBlank();
+        boolean hasApplicationStatus = applicationStatus != null && !applicationStatus.isBlank();
 
         // Build the WHERE clause once and reuse it for both data and count queries
-        // so that totalRecords reflects the same filters (owner + status + search).
+        // so that totalRecords reflects the same filters (owner + status + search + case/application status).
         StringBuilder whereClause = new StringBuilder(" WHERE owner = ? ");
         List<Object> filterParams = new ArrayList<>();
         filterParams.add(owner);
@@ -48,6 +52,16 @@ public class ApplicationDAOImpl implements ApplicationDAO {
         if (hasStatus) {
             whereClause.append(" AND status = ? ");
             filterParams.add(status);
+        }
+
+        if (hasCaseStatus) {
+            whereClause.append(" AND case_status = ? ");
+            filterParams.add(caseStatus);
+        }
+
+        if (hasApplicationStatus) {
+            whereClause.append(" AND status = ? ");
+            filterParams.add(applicationStatus);
         }
 
         if (hasSearch) {

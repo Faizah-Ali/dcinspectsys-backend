@@ -22,6 +22,8 @@ public class ApplicationController {
             @RequestParam String owner,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String caseStatus,
+            @RequestParam(required = false) String applicationStatus,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
@@ -30,6 +32,8 @@ public class ApplicationController {
                 owner,
                 status,
                 search,
+                caseStatus,
+                applicationStatus,
                 page,
                 size
         );

@@ -12,6 +12,8 @@ public interface ApplicationService {
             String owner,
             String status,
             String search,
+            String caseStatus,
+            String applicationStatus,
             int page,
             int size
     );

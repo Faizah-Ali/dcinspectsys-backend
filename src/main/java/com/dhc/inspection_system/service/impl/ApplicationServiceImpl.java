@@ -22,6 +22,8 @@ public class ApplicationServiceImpl implements ApplicationService {
             String owner,
             String status,
             String search,
+            String caseStatus,
+            String applicationStatus,
             int page,
             int size
     ) {
@@ -30,6 +32,8 @@ public class ApplicationServiceImpl implements ApplicationService {
                 owner,
                 status,
                 search,
+                caseStatus,
+                applicationStatus,
                 page,
                 size
         );
