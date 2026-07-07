@@ -1,5 +1,6 @@
 package com.dhc.inspection_system.controller;
 
+import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.service.ApplicationService;
 
@@ -16,6 +17,14 @@ public class ApplicationController {
 
     @Autowired
     private ApplicationService applicationService;
+
+    @GetMapping("/application-details")
+    public ApplicationDetailsResponse getApplicationDetails(
+            @RequestParam("diary_no") int diaryNo,
+            @RequestParam("diary_yr") int diaryYr
+    ) {
+        return applicationService.getApplicationDetails(diaryNo, diaryYr);
+    }
 
     @GetMapping("/applications")
     public PaginatedResponse<ApplicationResponse> getApplications(

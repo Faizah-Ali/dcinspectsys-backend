@@ -1,6 +1,7 @@
 package com.dhc.inspection_system.dao.impl;
 
 import com.dhc.inspection_system.dao.ApplicationDAO;
+import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 
@@ -16,6 +17,66 @@ public class ApplicationDAOImpl implements ApplicationDAO {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Override
+    public ApplicationDetailsResponse getApplicationDetails(int diaryNo, int diaryYr) {
+        String sql = """
+            SELECT *
+            FROM judl.INSPECTION_USER_ONLINE
+            WHERE diary_no = ?
+            AND diary_yr = ?
+            """;
+
+        List<ApplicationDetailsResponse> results = jdbcTemplate.query(
+                sql,
+                new Object[]{diaryNo, diaryYr},
+                (rs, rowNum) -> {
+                    ApplicationDetailsResponse obj = new ApplicationDetailsResponse();
+
+                    // obj.setUserId(rs.getString("userid"));
+                    // obj.setPassword(rs.getString("password"));
+                    obj.setCasetype(rs.getString("casetype"));
+                    obj.setRegNo(rs.getString("reg_no"));
+                    obj.setInspectionDate(rs.getString("inspection_date"));
+                    obj.setRegYr(rs.getString("reg_yr"));
+                    obj.setDecidedDate(rs.getString("decided_date"));
+                    obj.setCouncilFor(rs.getString("council_for"));
+                    obj.setAddress(rs.getString("address"));
+                    obj.setAppliedDate(rs.getString("applied_date"));
+                    obj.setRole(rs.getString("role"));
+                    obj.setUsername(rs.getString("username"));
+                    obj.setDecision(rs.getString("decision"));
+                    obj.setOwner(rs.getString("owner"));
+                    obj.setDiaryNo(rs.getInt("diary_no"));
+                    obj.setDiaryYr(rs.getInt("diary_yr"));
+                    obj.setEcourtFeeId(rs.getString("ecourt_fee_id"));
+                    obj.setIsMigrated(rs.getString("is_migrated"));
+                    obj.setOnlineMode(rs.getString("online_mode"));
+                    obj.setStatus(rs.getString("status"));
+                    obj.setRemarks(rs.getString("remarks"));
+                    // obj.setEmail(rs.getString("email"));
+                    obj.setCourtFeeAmount(rs.getString("court_fee_amount"));
+                    obj.setIsCourtfeeLocked(rs.getString("is_courtfee_locked"));
+                    obj.setCourtFeeReason(rs.getString("court_fee_reason"));
+                    obj.setIsNew(rs.getString("is_new"));
+                    obj.setCaseTitle(rs.getString("case_title"));
+                    obj.setApplappby(rs.getString("applappby"));
+                    obj.setAssigned(rs.getString("assigned"));
+                    obj.setApplappbyname(rs.getString("applappbyname"));
+                    obj.setAssignedname(rs.getString("assignedname"));
+                    // obj.setMobileno(rs.getString("mobileno"));
+                    obj.setEcourtMessage(rs.getString("ecourtmessage"));
+                    obj.setOrgAppliedDate(rs.getString("org_applied_date"));
+                    obj.setRejectCompleteDate(rs.getString("reject_complete_date"));
+                    obj.setCaseStatus(rs.getString("case_status"));
+                    obj.setRegTable(rs.getString("reg_table"));
+
+                    return obj;
+                }
+        );
+
+        return results.isEmpty() ? null : results.get(0);
+    }
 
     @Override
     public PaginatedResponse<ApplicationResponse> getApplications(

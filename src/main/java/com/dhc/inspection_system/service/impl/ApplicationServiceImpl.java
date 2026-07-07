@@ -1,6 +1,7 @@
 package com.dhc.inspection_system.service.impl;
 
 import com.dhc.inspection_system.dao.ApplicationDAO;
+import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.service.ApplicationService;
 
@@ -16,6 +17,11 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Autowired
     private ApplicationDAO applicationDAO;
+
+    @Override
+    public ApplicationDetailsResponse getApplicationDetails(int diaryNo, int diaryYr) {
+        return applicationDAO.getApplicationDetails(diaryNo, diaryYr);
+    }
 
     @Override
     public PaginatedResponse<ApplicationResponse> getApplications(
