@@ -2,6 +2,7 @@ package com.dhc.inspection_system.service;
 
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
+import com.dhc.inspection_system.dto.AssignApplicationRequest;
 
 import java.util.List;
 
@@ -20,4 +21,6 @@ public interface ApplicationService {
             int page,
             int size
     );
+
+    int assignApplication(AssignApplicationRequest request);
 }

@@ -19,7 +19,7 @@ public class CorsConfig {
                                 "http://localhost:5173",
                                 "http://172.16.114.198:8080"
                         )
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedMethods("GET", "POST", "PUT","PATCH", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);
             }

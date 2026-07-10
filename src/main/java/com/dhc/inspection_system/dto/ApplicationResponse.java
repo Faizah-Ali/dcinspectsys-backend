@@ -17,6 +17,8 @@ public class ApplicationResponse {
     private String ecourtMessage;
     private String courtFeeAmount;
     private String courtFeeReason;
+    private String assigned;
+    private String assignedname;
 
     public String getUsername() {
         return username;
@@ -136,5 +138,21 @@ public class ApplicationResponse {
 
     public void setCourtFeeReason(String courtFeeReason) {
         this.courtFeeReason = courtFeeReason;
+    }
+
+    public String getAssigned() {
+        return assigned;
+    }
+
+    public void setAssigned(String assigned) {
+        this.assigned = assigned;
+    }
+
+    public String getAssignedname() {
+        return assignedname;
+    }
+
+    public void setAssignedname(String assignedname) {
+        this.assignedname = assignedname;
     }
 }

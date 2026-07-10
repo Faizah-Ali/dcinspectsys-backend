@@ -3,6 +3,7 @@ package com.dhc.inspection_system.dao.impl;
 import com.dhc.inspection_system.dao.ApplicationDAO;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
+import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -168,7 +169,9 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                 case_status,
                 ecourtmessage,
                 court_fee_amount,
-                court_fee_reason
+                court_fee_reason,
+                assigned,
+                assignedname
             FROM judl.INSPECTION_USER_ONLINE
             """
                 + whereClause
@@ -224,6 +227,8 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                     obj.setEcourtMessage(rs.getString("ecourtmessage"));
                     obj.setCourtFeeAmount(rs.getString("court_fee_amount"));
                     obj.setCourtFeeReason(rs.getString("court_fee_reason"));
+                    obj.setAssigned(rs.getString("assigned"));
+                    obj.setAssignedname(rs.getString("assignedname"));
 
                     return obj;
                 }
@@ -247,5 +252,28 @@ public class ApplicationDAOImpl implements ApplicationDAO {
         response.setHasPrevious(page > 1);
 
         return response;
+    }
+
+    @Override
+    public int assignApplication(AssignApplicationRequest request) {
+        String sql = """
+            UPDATE judl.inspection_user_online
+            SET
+                status = 'N',
+                assigned = ?,
+                assignedname = ?,
+                remarks = ?
+            WHERE diary_no = ?
+              AND diary_yr = ?
+            """;
+
+        return jdbcTemplate.update(
+                sql,
+                request.getAssigned(),
+                request.getAssignedname(),
+                request.getRemarks(),
+                request.getDiaryNo(),
+                request.getDiaryYr()
+        );
     }
 }
