@@ -153,6 +153,14 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             }
         }
 
+        whereClause.append("""
+                AND (
+                    (assigned IS NULL OR TRIM(assigned) = '')
+                    AND
+                    (assignedname IS NULL OR TRIM(assignedname) = '')
+                )
+                """);
+
         String dataQuery = """
             SELECT
                 username,

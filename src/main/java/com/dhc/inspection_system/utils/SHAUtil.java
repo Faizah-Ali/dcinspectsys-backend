@@ -6,7 +6,7 @@ public class SHAUtil {
 
     public static String getSHA(String input) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
             byte[] hash = md.digest(input.getBytes());
 
             StringBuilder hexString = new StringBuilder();

@@ -25,7 +25,7 @@ public class ApproverDaoImpl implements ApproverDao {
 
         return jdbcTemplate.query(
                 sql,
-                new Object[]{"INSPECTIONAPPROVER"},
+                new Object[]{"ONLINEINSPECTION"},
                 (rs, rowNum) -> {
                     ApproverResponse obj = new ApproverResponse();
                     obj.setId(rs.getString("id"));
