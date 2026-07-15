@@ -322,4 +322,26 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                 request.getDiaryYr()
         );
     }
+
+    @Override
+    public int approveApplication(int diaryNo, int diaryYr) {
+        String sql = """
+            UPDATE judl.inspection_user_online
+            SET status='P'
+            WHERE diary_no=? AND diary_yr=?
+            """;
+
+        return jdbcTemplate.update(sql, diaryNo, diaryYr);
+    }
+
+    @Override
+    public int rejectApplication(int diaryNo, int diaryYr) {
+        String sql = """
+            UPDATE judl.inspection_user_online
+            SET status='K'
+            WHERE diary_no=? AND diary_yr=?
+            """;
+
+        return jdbcTemplate.update(sql, diaryNo, diaryYr);
+    }
 }

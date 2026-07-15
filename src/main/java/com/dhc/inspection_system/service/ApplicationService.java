@@ -2,6 +2,7 @@ package com.dhc.inspection_system.service;
 
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
+import com.dhc.inspection_system.dto.ApproveRejectRequest;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 
@@ -21,4 +22,8 @@ public interface ApplicationService {
     );
 
     int assignApplication(AssignApplicationRequest request);
+
+    int approveApplication(ApproveRejectRequest request);
+
+    int rejectApplication(ApproveRejectRequest request);
 }

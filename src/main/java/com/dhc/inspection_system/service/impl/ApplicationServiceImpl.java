@@ -5,6 +5,7 @@ import com.dhc.inspection_system.dao.ApplicationDAO;
 import com.dhc.inspection_system.dao.LoginDAO;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
+import com.dhc.inspection_system.dto.ApproveRejectRequest;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.LoginUserDTO;
 import com.dhc.inspection_system.dto.PaginatedResponse;
@@ -120,6 +121,48 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         try {
             return applicationDAO.assignApplication(request);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    @Override
+    public int approveApplication(ApproveRejectRequest request) {
+        if (request.getDiaryNo() == null) {
+            throw new IllegalArgumentException("diaryNo must not be null");
+        }
+
+        if (request.getDiaryYr() == null) {
+            throw new IllegalArgumentException("diaryYr must not be null");
+        }
+
+        try {
+            return applicationDAO.approveApplication(
+                    request.getDiaryNo(),
+                    request.getDiaryYr()
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    @Override
+    public int rejectApplication(ApproveRejectRequest request) {
+        if (request.getDiaryNo() == null) {
+            throw new IllegalArgumentException("diaryNo must not be null");
+        }
+
+        if (request.getDiaryYr() == null) {
+            throw new IllegalArgumentException("diaryYr must not be null");
+        }
+
+        try {
+            return applicationDAO.rejectApplication(
+                    request.getDiaryNo(),
+                    request.getDiaryYr()
+            );
         } catch (Exception e) {
             e.printStackTrace();
             throw e;

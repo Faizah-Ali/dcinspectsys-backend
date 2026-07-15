@@ -2,6 +2,7 @@ package com.dhc.inspection_system.controller;
 
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
+import com.dhc.inspection_system.dto.ApproveRejectRequest;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.service.ApplicationService;
@@ -89,6 +90,66 @@ public class ApplicationController {
             e.printStackTrace();
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("message", "An unexpected error occurred while assigning the application.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PatchMapping("/approve-application")
+    public ResponseEntity<Map<String, String>> approveApplication(
+            @RequestBody ApproveRejectRequest request
+    ) {
+        try {
+            int updatedRows = applicationService.approveApplication(request);
+
+            if (updatedRows > 0) {
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Application approved successfully");
+                return ResponseEntity.ok(response);
+            }
+
+            Map<String, String> notFoundResponse = new HashMap<>();
+            notFoundResponse.put("message", "No records found.");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(notFoundResponse);
+
+        } catch (IllegalArgumentException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "An unexpected error occurred while approving the application.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PatchMapping("/reject-application")
+    public ResponseEntity<Map<String, String>> rejectApplication(
+            @RequestBody ApproveRejectRequest request
+    ) {
+        try {
+            int updatedRows = applicationService.rejectApplication(request);
+
+            if (updatedRows > 0) {
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Application rejected successfully");
+                return ResponseEntity.ok(response);
+            }
+
+            Map<String, String> notFoundResponse = new HashMap<>();
+            notFoundResponse.put("message", "No records found.");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(notFoundResponse);
+
+        } catch (IllegalArgumentException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "An unexpected error occurred while rejecting the application.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
