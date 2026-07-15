@@ -57,6 +57,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         boolean unassignedOnly = false;
         String assigned = null;
+        String applappby = null;
         List<String> statuses = (status != null && !status.isBlank())
                 ? List.of(status)
                 : null;
@@ -76,9 +77,19 @@ public class ApplicationServiceImpl implements ApplicationService {
             unassignedOnly = false;
         }
 
+        // Approver Inbox (INSPECTIONAPPROVER): applications submitted for approval by user.
+        if ("INSPECTIONAPPROVER".equals(loggedInRole)) {
+            owner = null;
+            assigned = null;
+            applappby = loggedInUsername;
+            statuses = List.of("T");
+            unassignedOnly = false;
+        }
+
         return applicationDAO.getApplications(
                 owner,
                 assigned,
+                applappby,
                 statuses,
                 search,
                 caseStatus,

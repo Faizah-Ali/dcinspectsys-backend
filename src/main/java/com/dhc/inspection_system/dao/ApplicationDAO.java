@@ -14,6 +14,7 @@ public interface ApplicationDAO {
     PaginatedResponse<ApplicationResponse> getApplications(
             String owner,
             String assigned,
+            String applappby,
             List<String> statuses,
             String search,
             String caseStatus,

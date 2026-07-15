@@ -83,6 +83,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
     public PaginatedResponse<ApplicationResponse> getApplications(
             String owner,
             String assigned,
+            String applappby,
             List<String> statuses,
             String search,
             String caseStatus,
@@ -104,6 +105,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
 
         boolean hasOwner = owner != null && !owner.isBlank();
         boolean hasAssigned = assigned != null && !assigned.isBlank();
+        boolean hasApplAppBy = applappby != null && !applappby.isBlank();
         boolean hasSearch = search != null && !search.isBlank();
         boolean hasCaseStatus = caseStatus != null && !caseStatus.isBlank();
         boolean hasApplicationStatus = applicationStatus != null && !applicationStatus.isBlank();
@@ -131,6 +133,11 @@ public class ApplicationDAOImpl implements ApplicationDAO {
         if (hasAssigned) {
             whereClause.append(" AND assigned = ? ");
             filterParams.add(assigned);
+        }
+
+        if (hasApplAppBy) {
+            whereClause.append(" AND applappby = ? ");
+            filterParams.add(applappby);
         }
 
         if (hasStatuses) {
