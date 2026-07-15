@@ -1,23 +1,29 @@
 package com.dhc.inspection_system.service.impl;
 
+import com.dhc.inspection_system.auth.JwtUtil;
 import com.dhc.inspection_system.dao.ApplicationDAO;
+import com.dhc.inspection_system.dao.LoginDAO;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
+import com.dhc.inspection_system.dto.LoginUserDTO;
+import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.service.ApplicationService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-
-import com.dhc.inspection_system.dto.PaginatedResponse;
 
 @Service
 public class ApplicationServiceImpl implements ApplicationService {
 
     @Autowired
     private ApplicationDAO applicationDAO;
+
+    @Autowired
+    private LoginDAO loginDAO;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Override
     public ApplicationDetailsResponse getApplicationDetails(int diaryNo, int diaryYr) {
@@ -26,6 +32,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Override
     public PaginatedResponse<ApplicationResponse> getApplications(
+            String authorization,
             String owner,
             String status,
             String search,
@@ -35,12 +42,33 @@ public class ApplicationServiceImpl implements ApplicationService {
             int size
     ) {
 
+        // Identify logged-in user from JWT only (not from request params).
+        String loggedInUsername = extractUsernameFromAuthorization(authorization);
+        LoginUserDTO loggedInUser = null;
+
+        if (loggedInUsername != null && !loggedInUsername.isBlank()) {
+            loggedInUser = loginDAO.getUserByUsername(loggedInUsername);
+        }
+
+        String loggedInRole = loggedInUser != null ? loggedInUser.getRole() : null;
+        String loggedInGroup = loggedInUser != null ? loggedInUser.getGroup() : null;
+
+        boolean unassignedOnly = false;
+
+        // Admin Inbox (INSPECTIONADMIN): force legacy filters from DB role/group.
+        if ("INSPECTIONADMIN".equals(loggedInRole)) {
+            owner = loggedInGroup;
+            status = "N";
+            unassignedOnly = true;
+        }
+
         return applicationDAO.getApplications(
                 owner,
                 status,
                 search,
                 caseStatus,
                 applicationStatus,
+                unassignedOnly,
                 page,
                 size
         );
@@ -70,5 +98,22 @@ public class ApplicationServiceImpl implements ApplicationService {
             e.printStackTrace();
             throw e;
         }
+    }
+
+    private String extractUsernameFromAuthorization(String authorization) {
+        if (authorization == null || authorization.isBlank()) {
+            return null;
+        }
+
+        // Service removes "Bearer " prefix.
+        String token = authorization.startsWith("Bearer ")
+                ? authorization.substring(7).trim()
+                : authorization.trim();
+
+        if (token.isBlank() || !jwtUtil.validateToken(token)) {
+            return null;
+        }
+
+        return jwtUtil.extractUsername(token);
     }
 }

@@ -16,6 +16,7 @@ public interface ApplicationDAO {
             String search,
             String caseStatus,
             String applicationStatus,
+            boolean unassignedOnly,
             int page,
             int size
     );

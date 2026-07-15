@@ -86,6 +86,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             String search,
             String caseStatus,
             String applicationStatus,
+            boolean unassignedOnly,
             int page,
             int size
     ) {
@@ -153,13 +154,15 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             }
         }
 
-        whereClause.append("""
-                AND (
-                    (assigned IS NULL OR TRIM(assigned) = '')
-                    AND
-                    (assignedname IS NULL OR TRIM(assignedname) = '')
-                )
-                """);
+        if (unassignedOnly) {
+            whereClause.append("""
+                    AND (
+                        (assigned IS NULL OR TRIM(assigned) = '')
+                        AND
+                        (assignedname IS NULL OR TRIM(assignedname) = '')
+                    )
+                    """);
+        }
 
         String dataQuery = """
             SELECT

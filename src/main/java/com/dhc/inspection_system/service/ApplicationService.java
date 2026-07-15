@@ -3,9 +3,6 @@ package com.dhc.inspection_system.service;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
-
-import java.util.List;
-
 import com.dhc.inspection_system.dto.PaginatedResponse;
 
 public interface ApplicationService {
@@ -13,6 +10,7 @@ public interface ApplicationService {
     ApplicationDetailsResponse getApplicationDetails(int diaryNo, int diaryYr);
 
     PaginatedResponse<ApplicationResponse> getApplications(
+            String authorization,
             String owner,
             String status,
             String search,

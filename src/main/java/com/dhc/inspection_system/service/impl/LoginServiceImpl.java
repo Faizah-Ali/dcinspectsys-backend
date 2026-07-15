@@ -24,7 +24,7 @@ public class LoginServiceImpl implements LoginService {
 
         try {
 
-            LoginUserDTO user = loginDAO.getPasswordByUsername(request.getUsername());
+            LoginUserDTO user = loginDAO.getUserByUsername(request.getUsername());
 
             if (user == null) {
                 return new JwtResponse(null, null, null, null, "USER_NOT_FOUND");

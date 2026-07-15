@@ -13,7 +13,7 @@ public class LoginDAOImpl implements LoginDAO {
     private JdbcTemplate jdbcTemplate;
 
     @Override
-    public LoginUserDTO getPasswordByUsername(String username) {
+    public LoginUserDTO getUserByUsername(String username) {
 
         String query = """
     SELECT E.PASS, D.ROLE, D.branch_id

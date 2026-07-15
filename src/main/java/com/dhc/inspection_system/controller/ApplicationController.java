@@ -3,6 +3,7 @@ package com.dhc.inspection_system.controller;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
+import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.service.ApplicationService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,10 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-
-import com.dhc.inspection_system.dto.PaginatedResponse;
 
 @RestController
 @RequestMapping("/api")
@@ -43,7 +41,8 @@ public class ApplicationController {
 
     @GetMapping("/applications")
     public PaginatedResponse<ApplicationResponse> getApplications(
-            @RequestParam String owner,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(required = false) String owner,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String caseStatus,
@@ -53,6 +52,7 @@ public class ApplicationController {
     ) {
 
         return applicationService.getApplications(
+                authorization,
                 owner,
                 status,
                 search,
