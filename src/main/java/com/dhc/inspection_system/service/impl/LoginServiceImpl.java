@@ -27,7 +27,7 @@ public class LoginServiceImpl implements LoginService {
             LoginUserDTO user = loginDAO.getPasswordByUsername(request.getUsername());
 
             if (user == null) {
-                return new JwtResponse(null, null, null, "USER_NOT_FOUND");
+                return new JwtResponse(null, null, null, null, "USER_NOT_FOUND");
             }
 
             String salt = request.getSalt();
@@ -41,11 +41,12 @@ public class LoginServiceImpl implements LoginService {
                         token,
                         request.getUsername(),
                         user.getRole(),
+                        user.getGroup(),
                         "Login Successful"
                 );
 
             } else {
-                return new JwtResponse(null, null, null, "INVALID_PASSWORD");
+                return new JwtResponse(null, null, null, null, "INVALID_PASSWORD");
             }
 
         } catch (Exception e) {
