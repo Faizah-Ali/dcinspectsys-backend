@@ -1,5 +1,7 @@
 package com.dhc.inspection_system.dao;
 
+import com.dhc.inspection_system.dto.LoginUserDTO;
+
 public interface LoginDAO {
-    String getPasswordByUsername(String username);
+    LoginUserDTO getPasswordByUsername(String username);
 }

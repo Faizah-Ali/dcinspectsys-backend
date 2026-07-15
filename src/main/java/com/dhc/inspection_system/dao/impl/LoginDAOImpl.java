@@ -1,6 +1,7 @@
 package com.dhc.inspection_system.dao.impl;
 
 import com.dhc.inspection_system.dao.LoginDAO;
+import com.dhc.inspection_system.dto.LoginUserDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -12,10 +13,10 @@ public class LoginDAOImpl implements LoginDAO {
     private JdbcTemplate jdbcTemplate;
 
     @Override
-    public String getPasswordByUsername(String username) {
+    public LoginUserDTO getPasswordByUsername(String username) {
 
         String query = """
-    SELECT E.PASS
+    SELECT E.PASS, D.ROLE
     FROM access.PIS_EMPLOYEES E
     INNER JOIN judl.dropbox_user_authorization D
         ON E.EMP_CODE = D.ID
@@ -31,7 +32,12 @@ public class LoginDAOImpl implements LoginDAO {
 
             return jdbcTemplate.queryForObject(
                     query,
-                    String.class,
+                    (rs, rowNum) -> {
+                        LoginUserDTO dto = new LoginUserDTO();
+                        dto.setPassword(rs.getString("PASS"));
+                        dto.setRole(rs.getString("ROLE"));
+                        return dto;
+                    },
                     username
             );
 
