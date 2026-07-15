@@ -13,6 +13,8 @@ import com.dhc.inspection_system.service.ApplicationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class ApplicationServiceImpl implements ApplicationService {
 
@@ -54,17 +56,30 @@ public class ApplicationServiceImpl implements ApplicationService {
         String loggedInGroup = loggedInUser != null ? loggedInUser.getGroup() : null;
 
         boolean unassignedOnly = false;
+        String assigned = null;
+        List<String> statuses = (status != null && !status.isBlank())
+                ? List.of(status)
+                : null;
 
         // Admin Inbox (INSPECTIONADMIN): force legacy filters from DB role/group.
         if ("INSPECTIONADMIN".equals(loggedInRole)) {
             owner = loggedInGroup;
-            status = "N";
+            statuses = List.of("N");
             unassignedOnly = true;
+        }
+
+        // Pending Applications (ONLINEINSPECTION): assigned to logged-in user.
+        if ("ONLINEINSPECTION".equals(loggedInRole)) {
+            owner = null;
+            assigned = loggedInUsername;
+            statuses = List.of("N", "P", "T", "K");
+            unassignedOnly = false;
         }
 
         return applicationDAO.getApplications(
                 owner,
-                status,
+                assigned,
+                statuses,
                 search,
                 caseStatus,
                 applicationStatus,

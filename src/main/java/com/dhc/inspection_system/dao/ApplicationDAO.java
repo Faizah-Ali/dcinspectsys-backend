@@ -3,8 +3,9 @@ package com.dhc.inspection_system.dao;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
-
 import com.dhc.inspection_system.dto.PaginatedResponse;
+
+import java.util.List;
 
 public interface ApplicationDAO {
 
@@ -12,7 +13,8 @@ public interface ApplicationDAO {
 
     PaginatedResponse<ApplicationResponse> getApplications(
             String owner,
-            String status,
+            String assigned,
+            List<String> statuses,
             String search,
             String caseStatus,
             String applicationStatus,

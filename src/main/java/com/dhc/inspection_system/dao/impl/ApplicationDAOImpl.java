@@ -82,7 +82,8 @@ public class ApplicationDAOImpl implements ApplicationDAO {
     @Override
     public PaginatedResponse<ApplicationResponse> getApplications(
             String owner,
-            String status,
+            String assigned,
+            List<String> statuses,
             String search,
             String caseStatus,
             String applicationStatus,
@@ -101,20 +102,47 @@ public class ApplicationDAOImpl implements ApplicationDAO {
 
         int offset = (page - 1) * size;
 
-        boolean hasStatus = status != null && !status.isBlank();
+        boolean hasOwner = owner != null && !owner.isBlank();
+        boolean hasAssigned = assigned != null && !assigned.isBlank();
         boolean hasSearch = search != null && !search.isBlank();
         boolean hasCaseStatus = caseStatus != null && !caseStatus.isBlank();
         boolean hasApplicationStatus = applicationStatus != null && !applicationStatus.isBlank();
 
-        // Build the WHERE clause once and reuse it for both data and count queries
-        // so that totalRecords reflects the same filters (owner + status + search + case/application status).
-        StringBuilder whereClause = new StringBuilder(" WHERE owner = ? ");
-        List<Object> filterParams = new ArrayList<>();
-        filterParams.add(owner);
+        List<String> statusValues = new ArrayList<>();
+        if (statuses != null) {
+            for (String s : statuses) {
+                if (s != null && !s.isBlank()) {
+                    statusValues.add(s);
+                }
+            }
+        }
+        boolean hasStatuses = !statusValues.isEmpty();
 
-        if (hasStatus) {
-            whereClause.append(" AND status = ? ");
-            filterParams.add(status);
+        // Build the WHERE clause once and reuse it for both data and count queries
+        // so that totalRecords reflects the same filters.
+        StringBuilder whereClause = new StringBuilder(" WHERE 1=1 ");
+        List<Object> filterParams = new ArrayList<>();
+
+        if (hasOwner) {
+            whereClause.append(" AND owner = ? ");
+            filterParams.add(owner);
+        }
+
+        if (hasAssigned) {
+            whereClause.append(" AND assigned = ? ");
+            filterParams.add(assigned);
+        }
+
+        if (hasStatuses) {
+            whereClause.append(" AND status IN (");
+            for (int i = 0; i < statusValues.size(); i++) {
+                if (i > 0) {
+                    whereClause.append(", ");
+                }
+                whereClause.append("?");
+                filterParams.add(statusValues.get(i));
+            }
+            whereClause.append(") ");
         }
 
         if (hasCaseStatus) {
