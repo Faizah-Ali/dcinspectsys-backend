@@ -9,6 +9,7 @@ import com.dhc.inspection_system.dto.ApproveRejectRequest;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.LoginUserDTO;
 import com.dhc.inspection_system.dto.PaginatedResponse;
+import com.dhc.inspection_system.dto.SendForApprovalRequest;
 import com.dhc.inspection_system.service.ApplicationService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -163,6 +164,32 @@ public class ApplicationServiceImpl implements ApplicationService {
                     request.getDiaryNo(),
                     request.getDiaryYr()
             );
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    @Override
+    public int sendForApproval(SendForApprovalRequest request) {
+        if (request.getDiaryNo() == null) {
+            throw new IllegalArgumentException("diaryNo must not be null");
+        }
+
+        if (request.getDiaryYr() == null) {
+            throw new IllegalArgumentException("diaryYr must not be null");
+        }
+
+        if (request.getApproverId() == null || request.getApproverId().isBlank()) {
+            throw new IllegalArgumentException("approverId must not be null or blank");
+        }
+
+        if (request.getApproverName() == null || request.getApproverName().isBlank()) {
+            throw new IllegalArgumentException("approverName must not be null or blank");
+        }
+
+        try {
+            return applicationDAO.sendForApproval(request);
         } catch (Exception e) {
             e.printStackTrace();
             throw e;

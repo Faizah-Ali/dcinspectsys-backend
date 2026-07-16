@@ -7,4 +7,6 @@ import java.util.List;
 public interface ApproverService {
 
     List<ApproverResponse> getApproversList();
+
+    List<ApproverResponse> getInspectionApprovers();
 }

@@ -35,4 +35,25 @@ public class ApproverDaoImpl implements ApproverDao {
                 }
         );
     }
+
+    @Override
+    public List<ApproverResponse> getInspectionApprovers() {
+        String sql = """
+                SELECT id, fullname, role
+                FROM judl.dropbox_user_authorization
+                WHERE role='INSPECTIONAPPROVER'
+                ORDER BY fullname ASC
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> {
+                    ApproverResponse obj = new ApproverResponse();
+                    obj.setId(rs.getString("id"));
+                    obj.setFullname(rs.getString("fullname"));
+                    obj.setRole(rs.getString("role"));
+                    return obj;
+                }
+        );
+    }
 }

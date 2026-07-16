@@ -5,6 +5,7 @@ import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.ApproveRejectRequest;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
+import com.dhc.inspection_system.dto.SendForApprovalRequest;
 import com.dhc.inspection_system.service.ApplicationService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -150,6 +151,36 @@ public class ApplicationController {
             e.printStackTrace();
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("message", "An unexpected error occurred while rejecting the application.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PatchMapping("/send-for-approval")
+    public ResponseEntity<Map<String, String>> sendForApproval(
+            @RequestBody SendForApprovalRequest request
+    ) {
+        try {
+            int updatedRows = applicationService.sendForApproval(request);
+
+            if (updatedRows > 0) {
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Application sent for approval successfully.");
+                return ResponseEntity.ok(response);
+            }
+
+            Map<String, String> notFoundResponse = new HashMap<>();
+            notFoundResponse.put("message", "No records found.");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(notFoundResponse);
+
+        } catch (IllegalArgumentException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "An unexpected error occurred while sending the application for approval.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }

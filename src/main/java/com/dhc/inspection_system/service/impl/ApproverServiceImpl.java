@@ -18,4 +18,9 @@ public class ApproverServiceImpl implements ApproverService {
     public List<ApproverResponse> getApproversList() {
         return approverDao.getApproversList();
     }
+
+    @Override
+    public List<ApproverResponse> getInspectionApprovers() {
+        return approverDao.getInspectionApprovers();
+    }
 }

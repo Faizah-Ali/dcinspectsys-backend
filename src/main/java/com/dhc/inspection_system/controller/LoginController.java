@@ -4,6 +4,8 @@ import com.dhc.inspection_system.auth.JwtResponse;
 import com.dhc.inspection_system.dto.LoginRequest;
 import com.dhc.inspection_system.service.LoginService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,7 +16,13 @@ public class LoginController {
     private LoginService loginService;
 
     @PostMapping("/login")
-    public JwtResponse login(@RequestBody LoginRequest request) {
-        return loginService.login(request);
+    public ResponseEntity<JwtResponse> login(@RequestBody LoginRequest request) {
+        JwtResponse response = loginService.login(request);
+
+        if (response.getToken() != null) {
+            return ResponseEntity.ok(response);
+        }
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 }

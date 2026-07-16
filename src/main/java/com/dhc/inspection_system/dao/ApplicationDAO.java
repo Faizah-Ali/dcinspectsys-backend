@@ -4,6 +4,7 @@ import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
+import com.dhc.inspection_system.dto.SendForApprovalRequest;
 
 import java.util.List;
 
@@ -29,4 +30,6 @@ public interface ApplicationDAO {
     int approveApplication(int diaryNo, int diaryYr);
 
     int rejectApplication(int diaryNo, int diaryYr);
+
+    int sendForApproval(SendForApprovalRequest request);
 }

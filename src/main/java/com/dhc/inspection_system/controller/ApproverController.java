@@ -20,4 +20,9 @@ public class ApproverController {
     public List<ApproverResponse> getApproversList() {
         return approverService.getApproversList();
     }
+
+    @GetMapping("/inspection-approvers")
+    public List<ApproverResponse> getInspectionApprovers() {
+        return approverService.getInspectionApprovers();
+    }
 }

@@ -7,4 +7,6 @@ import java.util.List;
 public interface ApproverDao {
 
     List<ApproverResponse> getApproversList();
+
+    List<ApproverResponse> getInspectionApprovers();
 }

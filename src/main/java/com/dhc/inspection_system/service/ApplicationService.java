@@ -5,6 +5,7 @@ import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.ApproveRejectRequest;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
+import com.dhc.inspection_system.dto.SendForApprovalRequest;
 
 public interface ApplicationService {
 
@@ -26,4 +27,6 @@ public interface ApplicationService {
     int approveApplication(ApproveRejectRequest request);
 
     int rejectApplication(ApproveRejectRequest request);
+
+    int sendForApproval(SendForApprovalRequest request);
 }

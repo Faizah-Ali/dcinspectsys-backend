@@ -5,6 +5,7 @@ import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
+import com.dhc.inspection_system.dto.SendForApprovalRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -343,5 +344,28 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             """;
 
         return jdbcTemplate.update(sql, diaryNo, diaryYr);
+    }
+
+    @Override
+    public int sendForApproval(SendForApprovalRequest request) {
+        String sql = """
+            UPDATE judl.inspection_user_online
+            SET
+                status='T',
+                applappby=?,
+                applappbyname=?,
+                remarks=?
+            WHERE diary_no=?
+            AND diary_yr=?
+            """;
+
+        return jdbcTemplate.update(
+                sql,
+                request.getApproverId(),
+                request.getApproverName(),
+                request.getRemarks(),
+                request.getDiaryNo(),
+                request.getDiaryYr()
+        );
     }
 }
