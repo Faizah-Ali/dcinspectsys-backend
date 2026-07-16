@@ -141,7 +141,8 @@ public class ApplicationServiceImpl implements ApplicationService {
         try {
             return applicationDAO.approveApplication(
                     request.getDiaryNo(),
-                    request.getDiaryYr()
+                    request.getDiaryYr(),
+                    request.getRemarks()
             );
         } catch (Exception e) {
             e.printStackTrace();
@@ -162,7 +163,8 @@ public class ApplicationServiceImpl implements ApplicationService {
         try {
             return applicationDAO.rejectApplication(
                     request.getDiaryNo(),
-                    request.getDiaryYr()
+                    request.getDiaryYr(),
+                    request.getRemarks()
             );
         } catch (Exception e) {
             e.printStackTrace();

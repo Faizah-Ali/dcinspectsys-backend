@@ -27,9 +27,9 @@ public interface ApplicationDAO {
 
     int assignApplication(AssignApplicationRequest request);
 
-    int approveApplication(int diaryNo, int diaryYr);
+    int approveApplication(int diaryNo, int diaryYr, String remarks);
 
-    int rejectApplication(int diaryNo, int diaryYr);
+    int rejectApplication(int diaryNo, int diaryYr, String remarks);
 
     int sendForApproval(SendForApprovalRequest request);
 }
