@@ -4,6 +4,7 @@ import com.dhc.inspection_system.dao.ApplicationDAO;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
+import com.dhc.inspection_system.dto.ForwardApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.dto.SendForApprovalRequest;
 
@@ -354,6 +355,29 @@ public class ApplicationDAOImpl implements ApplicationDAO {
 
     @Override
     public int sendForApproval(SendForApprovalRequest request) {
+        String sql = """
+            UPDATE judl.inspection_user_online
+            SET
+                status='T',
+                applappby=?,
+                applappbyname=?,
+                remarks=?
+            WHERE diary_no=?
+            AND diary_yr=?
+            """;
+
+        return jdbcTemplate.update(
+                sql,
+                request.getApproverId(),
+                request.getApproverName(),
+                request.getRemarks(),
+                request.getDiaryNo(),
+                request.getDiaryYr()
+        );
+    }
+
+    @Override
+    public int forwardApplication(ForwardApplicationRequest request) {
         String sql = """
             UPDATE judl.inspection_user_online
             SET

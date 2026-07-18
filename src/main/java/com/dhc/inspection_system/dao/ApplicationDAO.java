@@ -3,6 +3,7 @@ package com.dhc.inspection_system.dao;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
+import com.dhc.inspection_system.dto.ForwardApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.dto.SendForApprovalRequest;
 
@@ -32,4 +33,6 @@ public interface ApplicationDAO {
     int rejectApplication(int diaryNo, int diaryYr, String remarks);
 
     int sendForApproval(SendForApprovalRequest request);
+
+    int forwardApplication(ForwardApplicationRequest request);
 }
