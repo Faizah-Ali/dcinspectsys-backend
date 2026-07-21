@@ -354,6 +354,21 @@ public class ApplicationDAOImpl implements ApplicationDAO {
     }
 
     @Override
+    public int rejectApplicationByOfficer(int diaryNo, int diaryYr, String remarks) {
+        String sql = """
+            UPDATE judl.inspection_user_online
+            SET
+                status='C',
+                remarks=?,
+                reject_complete_date=CURRENT_TIMESTAMP
+            WHERE diary_no=?
+            AND diary_yr=?
+            """;
+
+        return jdbcTemplate.update(sql, remarks, diaryNo, diaryYr);
+    }
+
+    @Override
     public int sendForApproval(SendForApprovalRequest request) {
         String sql = """
             UPDATE judl.inspection_user_online
@@ -397,5 +412,34 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                 request.getDiaryNo(),
                 request.getDiaryYr()
         );
+    }
+
+    @Override
+    public int completeApplication(int diaryNo, int diaryYr, String remarks) {
+        String sql = """
+            UPDATE judl.inspection_user_online
+            SET
+                status='Y',
+                remarks=?,
+                reject_complete_date=CURRENT_TIMESTAMP,
+                is_courtfee_locked='Y'
+            WHERE diary_no=?
+            AND diary_yr=?
+            """;
+
+        return jdbcTemplate.update(sql, remarks, diaryNo, diaryYr);
+    }
+
+    @Override
+    public boolean hasDataShareReceiverDetails(int diaryNo, int diaryYr) {
+        String sql = """
+            SELECT COUNT(1)
+            FROM judl.data_share_receiver_details
+            WHERE diary_no = ?
+              AND diary_yr = ?
+            """;
+
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, diaryNo, diaryYr);
+        return count != null && count > 0;
     }
 }

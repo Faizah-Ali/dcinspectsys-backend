@@ -32,7 +32,13 @@ public interface ApplicationDAO {
 
     int rejectApplication(int diaryNo, int diaryYr, String remarks);
 
+    int rejectApplicationByOfficer(int diaryNo, int diaryYr, String remarks);
+
     int sendForApproval(SendForApprovalRequest request);
 
     int forwardApplication(ForwardApplicationRequest request);
+
+    int completeApplication(int diaryNo, int diaryYr, String remarks);
+
+    boolean hasDataShareReceiverDetails(int diaryNo, int diaryYr);
 }

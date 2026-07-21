@@ -1,9 +1,12 @@
 package com.dhc.inspection_system.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.ApproveRejectRequest;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
+import com.dhc.inspection_system.dto.CompleteApplicationRequest;
 import com.dhc.inspection_system.dto.ForwardApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.dto.SendForApprovalRequest;
@@ -13,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -24,6 +28,9 @@ public class ApplicationController {
 
     @Autowired
     private ApplicationService applicationService;
+
+    @Autowired
+    private HttpServletRequest httpServletRequest;
 
     @GetMapping("/application-details")
     public ResponseEntity<?> getApplicationDetails(
@@ -71,7 +78,10 @@ public class ApplicationController {
             @RequestBody AssignApplicationRequest request
     ) {
         try {
-            int updatedRows = applicationService.assignApplication(request);
+            int updatedRows = applicationService.assignApplication(
+                    httpServletRequest.getHeader("Authorization"),
+                    request
+            );
 
             if (updatedRows > 0) {
                 Map<String, String> response = new HashMap<>();
@@ -82,6 +92,11 @@ public class ApplicationController {
             Map<String, String> notFoundResponse = new HashMap<>();
             notFoundResponse.put("message", "No records found.");
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(notFoundResponse);
+
+        } catch (AccessDeniedException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
 
         } catch (IllegalArgumentException e) {
             Map<String, String> errorResponse = new HashMap<>();
@@ -131,7 +146,10 @@ public class ApplicationController {
             @RequestBody ApproveRejectRequest request
     ) {
         try {
-            int updatedRows = applicationService.rejectApplication(request);
+            int updatedRows = applicationService.rejectApplication(
+                    httpServletRequest.getHeader("Authorization"),
+                    request
+            );
 
             if (updatedRows > 0) {
                 Map<String, String> response = new HashMap<>();
@@ -212,6 +230,36 @@ public class ApplicationController {
             e.printStackTrace();
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("message", "An unexpected error occurred while forwarding the application.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PatchMapping("/complete-application")
+    public ResponseEntity<Map<String, String>> completeApplication(
+            @RequestBody CompleteApplicationRequest request
+    ) {
+        try {
+            int updatedRows = applicationService.completeApplication(request);
+
+            if (updatedRows > 0) {
+                Map<String, String> response = new HashMap<>();
+                response.put("message", "Application completed successfully.");
+                return ResponseEntity.ok(response);
+            }
+
+            Map<String, String> notFoundResponse = new HashMap<>();
+            notFoundResponse.put("message", "No records found.");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(notFoundResponse);
+
+        } catch (IllegalArgumentException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Unable to complete application.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }

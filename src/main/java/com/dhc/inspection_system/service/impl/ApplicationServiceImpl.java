@@ -7,6 +7,7 @@ import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.ApproveRejectRequest;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
+import com.dhc.inspection_system.dto.CompleteApplicationRequest;
 import com.dhc.inspection_system.dto.ForwardApplicationRequest;
 import com.dhc.inspection_system.dto.LoginUserDTO;
 import com.dhc.inspection_system.dto.PaginatedResponse;
@@ -14,6 +15,7 @@ import com.dhc.inspection_system.dto.SendForApprovalRequest;
 import com.dhc.inspection_system.service.ApplicationService;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -65,15 +67,20 @@ public class ApplicationServiceImpl implements ApplicationService {
                 ? List.of(status)
                 : null;
 
+        // Role-based inbox filters apply only when no explicit applicationStatus
+        // is requested (Processed/Rejected pages pass applicationStatus=Y/C).
+        boolean inboxRequest =
+                applicationStatus == null || applicationStatus.isBlank();
+
         // Admin Inbox (INSPECTIONADMIN): force legacy filters from DB role/group.
-        if ("INSPECTIONADMIN".equals(loggedInRole)) {
+        if ("INSPECTIONADMIN".equals(loggedInRole) && inboxRequest) {
             owner = loggedInGroup;
             statuses = List.of("N");
             unassignedOnly = true;
         }
 
         // Pending Applications (ONLINEINSPECTION): assigned to logged-in user.
-        if ("ONLINEINSPECTION".equals(loggedInRole)) {
+        if ("ONLINEINSPECTION".equals(loggedInRole) && inboxRequest) {
             owner = null;
             assigned = loggedInUsername;
             statuses = List.of("N", "P", "T", "K");
@@ -81,7 +88,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
 
         // Approver Inbox (INSPECTIONAPPROVER): applications submitted for approval by user.
-        if ("INSPECTIONAPPROVER".equals(loggedInRole)) {
+        if ("INSPECTIONAPPROVER".equals(loggedInRole) && inboxRequest) {
             owner = null;
             assigned = null;
             applappby = loggedInUsername;
@@ -104,7 +111,22 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
-    public int assignApplication(AssignApplicationRequest request) {
+    public int assignApplication(String authorization, AssignApplicationRequest request) {
+        String loggedInUsername = extractUsernameFromAuthorization(authorization);
+        LoginUserDTO loggedInUser = null;
+
+        if (loggedInUsername != null && !loggedInUsername.isBlank()) {
+            loggedInUser = loginDAO.getUserByUsername(loggedInUsername);
+        }
+
+        String loggedInRole = loggedInUser != null ? loggedInUser.getRole() : null;
+
+        if (!"INSPECTIONADMIN".equals(loggedInRole)) {
+            throw new AccessDeniedException(
+                    "Only Inspection Admin can assign applications."
+            );
+        }
+
         if (request.getDiaryNo() == null) {
             throw new IllegalArgumentException("diaryNo must not be null");
         }
@@ -152,7 +174,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
-    public int rejectApplication(ApproveRejectRequest request) {
+    public int rejectApplication(String authorization, ApproveRejectRequest request) {
         if (request.getDiaryNo() == null) {
             throw new IllegalArgumentException("diaryNo must not be null");
         }
@@ -162,6 +184,31 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
 
         try {
+            String loggedInUsername = extractUsernameFromAuthorization(authorization);
+            LoginUserDTO loggedInUser = null;
+
+            if (loggedInUsername != null && !loggedInUsername.isBlank()) {
+                loggedInUser = loginDAO.getUserByUsername(loggedInUsername);
+            }
+
+            String loggedInRole = loggedInUser != null ? loggedInUser.getRole() : null;
+
+            if ("ONLINEINSPECTION".equals(loggedInRole)) {
+                return applicationDAO.rejectApplicationByOfficer(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        request.getRemarks()
+                );
+            }
+
+            if ("INSPECTIONAPPROVER".equals(loggedInRole)) {
+                return applicationDAO.rejectApplication(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        request.getRemarks()
+                );
+            }
+
             return applicationDAO.rejectApplication(
                     request.getDiaryNo(),
                     request.getDiaryYr(),
@@ -219,6 +266,35 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         try {
             return applicationDAO.forwardApplication(request);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    @Override
+    public int completeApplication(CompleteApplicationRequest request) {
+        if (request.getDiaryNo() == null || request.getDiaryYr() == null) {
+            throw new IllegalArgumentException("Diary number and year are required.");
+        }
+
+        try {
+            if (!applicationDAO.hasDataShareReceiverDetails(
+                    request.getDiaryNo(),
+                    request.getDiaryYr()
+            )) {
+                throw new IllegalArgumentException(
+                        "Please upload the file for e-Inspection. Approval of inspection failed."
+                );
+            }
+
+            return applicationDAO.completeApplication(
+                    request.getDiaryNo(),
+                    request.getDiaryYr(),
+                    request.getRemarks()
+            );
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             e.printStackTrace();
             throw e;
