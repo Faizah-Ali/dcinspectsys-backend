@@ -1,11 +1,9 @@
 package com.dhc.inspection_system.service;
 
-import com.dhc.inspection_system.dto.UploadHistoryResponse;
-
-import java.util.List;
+import com.dhc.inspection_system.dto.UploadHistoryWrapperResponse;
 
 public interface UploadHistoryService {
 
-    List<UploadHistoryResponse> getUploadHistory(int diaryNo, int diaryYr);
+    UploadHistoryWrapperResponse getUploadHistory(int diaryNo, int diaryYr);
 
 }

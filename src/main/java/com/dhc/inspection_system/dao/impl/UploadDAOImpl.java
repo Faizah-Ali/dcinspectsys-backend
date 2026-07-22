@@ -110,4 +110,30 @@ public class UploadDAOImpl implements UploadDAO {
         }
     }
 
+    @Override
+    public int saveOnlineInspectionMessage(
+            int diaryNo,
+            int diaryYr,
+            String message,
+            String email,
+            String mobile,
+            String sms
+    ) {
+        String sql = """
+            INSERT INTO judl.inspection_user_online_message
+            (diary_no, diary_yr, message, email, mobile, sms)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """;
+
+        return jdbcTemplate.update(
+                sql,
+                diaryNo,
+                diaryYr,
+                message,
+                email,
+                mobile,
+                sms
+        );
+    }
+
 }

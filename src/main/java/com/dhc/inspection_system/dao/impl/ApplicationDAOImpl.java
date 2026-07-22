@@ -2,6 +2,7 @@ package com.dhc.inspection_system.dao.impl;
 
 import com.dhc.inspection_system.dao.ApplicationDAO;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
+import com.dhc.inspection_system.dto.ApplicationOwnershipInfo;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.ForwardApplicationRequest;
@@ -441,5 +442,29 @@ public class ApplicationDAOImpl implements ApplicationDAO {
 
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, diaryNo, diaryYr);
         return count != null && count > 0;
+    }
+
+    @Override
+    public ApplicationOwnershipInfo getStatusAndApplappby(int diaryNo, int diaryYr) {
+        String sql = """
+            SELECT status, applappby
+            FROM judl.inspection_user_online
+            WHERE diary_no = ?
+            AND diary_yr = ?
+            """;
+
+        List<ApplicationOwnershipInfo> results = jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> {
+                    ApplicationOwnershipInfo obj = new ApplicationOwnershipInfo();
+                    obj.setStatus(rs.getString("status"));
+                    obj.setApplappby(rs.getString("applappby"));
+                    return obj;
+                },
+                diaryNo,
+                diaryYr
+        );
+
+        return results.isEmpty() ? null : results.get(0);
     }
 }

@@ -1,6 +1,7 @@
 package com.dhc.inspection_system.dao;
 
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
+import com.dhc.inspection_system.dto.ApplicationOwnershipInfo;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.ForwardApplicationRequest;
@@ -41,4 +42,6 @@ public interface ApplicationDAO {
     int completeApplication(int diaryNo, int diaryYr, String remarks);
 
     boolean hasDataShareReceiverDetails(int diaryNo, int diaryYr);
+
+    ApplicationOwnershipInfo getStatusAndApplappby(int diaryNo, int diaryYr);
 }

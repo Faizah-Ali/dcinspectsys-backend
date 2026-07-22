@@ -23,4 +23,13 @@ public interface UploadDAO {
             String uniqueId
     );
 
+    int saveOnlineInspectionMessage(
+            int diaryNo,
+            int diaryYr,
+            String message,
+            String email,
+            String mobile,
+            String sms
+    );
+
 }

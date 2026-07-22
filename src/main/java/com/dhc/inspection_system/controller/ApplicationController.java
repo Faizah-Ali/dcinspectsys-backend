@@ -116,7 +116,10 @@ public class ApplicationController {
             @RequestBody ApproveRejectRequest request
     ) {
         try {
-            int updatedRows = applicationService.approveApplication(request);
+            int updatedRows = applicationService.approveApplication(
+                    httpServletRequest.getHeader("Authorization"),
+                    request
+            );
 
             if (updatedRows > 0) {
                 Map<String, String> response = new HashMap<>();
@@ -127,6 +130,11 @@ public class ApplicationController {
             Map<String, String> notFoundResponse = new HashMap<>();
             notFoundResponse.put("message", "No records found.");
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(notFoundResponse);
+
+        } catch (AccessDeniedException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
 
         } catch (IllegalArgumentException e) {
             Map<String, String> errorResponse = new HashMap<>();
@@ -161,6 +169,11 @@ public class ApplicationController {
             notFoundResponse.put("message", "No records found.");
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(notFoundResponse);
 
+        } catch (AccessDeniedException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+
         } catch (IllegalArgumentException e) {
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("message", e.getMessage());
@@ -179,7 +192,10 @@ public class ApplicationController {
             @RequestBody SendForApprovalRequest request
     ) {
         try {
-            int updatedRows = applicationService.sendForApproval(request);
+            int updatedRows = applicationService.sendForApproval(
+                    httpServletRequest.getHeader("Authorization"),
+                    request
+            );
 
             if (updatedRows > 0) {
                 Map<String, String> response = new HashMap<>();

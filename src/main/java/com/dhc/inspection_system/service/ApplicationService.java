@@ -26,11 +26,11 @@ public interface ApplicationService {
 
     int assignApplication(String authorization, AssignApplicationRequest request);
 
-    int approveApplication(ApproveRejectRequest request);
+    int approveApplication(String authorization, ApproveRejectRequest request);
 
     int rejectApplication(String authorization, ApproveRejectRequest request);
 
-    int sendForApproval(SendForApprovalRequest request);
+    int sendForApproval(String authorization, SendForApprovalRequest request);
 
     int forwardApplication(ForwardApplicationRequest request);
 

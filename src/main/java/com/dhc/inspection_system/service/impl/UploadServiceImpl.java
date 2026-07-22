@@ -3,11 +3,15 @@ package com.dhc.inspection_system.service.impl;
 import com.dhc.inspection_system.auth.JwtUtil;
 import com.dhc.inspection_system.dao.UploadDAO;
 import com.dhc.inspection_system.dto.UploadApplicantDetails;
+import com.dhc.inspection_system.service.InspectionAuditService;
 import com.dhc.inspection_system.service.UploadService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Files;
@@ -27,9 +31,13 @@ public class UploadServiceImpl implements UploadService {
     private UploadDAO uploadDAO;
 
     @Autowired
+    private InspectionAuditService inspectionAuditService;
+
+    @Autowired
     private JwtUtil jwtUtil;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int uploadInspectionFiles(
             MultipartFile[] files,
             String diaryNo,
@@ -70,6 +78,7 @@ public class UploadServiceImpl implements UploadService {
         }
 
         List<Path> savedFiles = new ArrayList<>();
+        registerFileCleanupOnRollback(savedFiles);
 
         try {
             UploadApplicantDetails applicant = uploadDAO.getApplicantDetails(diaryNoInt, diaryYrInt);
@@ -85,9 +94,9 @@ public class UploadServiceImpl implements UploadService {
                         + UUID.randomUUID().toString().substring(0, 8) + ".pdf";
                 String uniqueId = UUID.randomUUID().toString();
 
-                uploadDAO.saveInspectionFile(file, fileName);
                 Path savedFilePath = Paths.get(uploadDirectoryPath, fileName);
                 savedFiles.add(savedFilePath);
+                uploadDAO.saveInspectionFile(file, fileName);
 
                 int insertedRows = uploadDAO.insertDataShareReceiverDetails(
                         name,
@@ -105,21 +114,82 @@ public class UploadServiceImpl implements UploadService {
                 if (insertedRows <= 0) {
                     throw new RuntimeException("Failed to insert upload metadata into data_share_receiver_details");
                 }
+
+                String message = buildOnlineInspectionMessage(fileName, uniqueId);
+                String sms = buildPdfPasswordMessage(password);
+
+                int messageRows = uploadDAO.saveOnlineInspectionMessage(
+                        diaryNoInt,
+                        diaryYrInt,
+                        message,
+                        emailId,
+                        mobileNo,
+                        sms
+                );
+
+                if (messageRows <= 0) {
+                    throw new RuntimeException("Failed to insert inspection_user_online_message");
+                }
+
+                String description = "PDF File named as " + fileName + " uploaded for e-Inspection";
+                int logRows = inspectionAuditService.saveInspectionAuditLog(
+                        diaryNoInt,
+                        diaryYrInt,
+                        description,
+                        entryBy
+                );
+
+                if (logRows <= 0) {
+                    throw new RuntimeException("Failed to insert efiling_log");
+                }
             }
 
             return files.length;
-        } catch (IllegalArgumentException e) {
-            throw e;
         } catch (Exception e) {
             e.printStackTrace();
-            for (Path path : savedFiles) {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (Exception deleteException) {
-                    deleteException.printStackTrace();
+            deleteSavedFiles(savedFiles);
+            throw e;
+        }
+    }
+
+    private String buildOnlineInspectionMessage(String fileName, String uniqueId) {
+        return "<p>The PDF file named <strong>" + fileName
+                + "</strong> has been uploaded for e-Inspection.</p>"
+                + "<p>You can download the PDF using the following link: "
+                + "<a href=\"/api/download-inspection-file?uniqueId=" + uniqueId
+                + "\">Download PDF</a></p>"
+                + "<p>Unique ID: <strong>" + uniqueId + "</strong></p>"
+                + "<p><strong>Disclaimer:</strong> This PDF is provided solely to the applicant "
+                + "for e-Inspection purposes and must not be used for any other purpose.</p>";
+    }
+
+    private String buildPdfPasswordMessage(String password) {
+        String pdfPassword = password == null ? "" : password;
+        return "Your password/OTP to open the e-Inspection PDF is: " + pdfPassword;
+    }
+
+    private void registerFileCleanupOnRollback(List<Path> savedFiles) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status != TransactionSynchronization.STATUS_COMMITTED) {
+                    deleteSavedFiles(savedFiles);
                 }
             }
-            throw e;
+        });
+    }
+
+    private void deleteSavedFiles(List<Path> savedFiles) {
+        for (Path path : savedFiles) {
+            try {
+                Files.deleteIfExists(path);
+            } catch (Exception deleteException) {
+                deleteException.printStackTrace();
+            }
         }
     }
 

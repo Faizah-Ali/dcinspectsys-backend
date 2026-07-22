@@ -4,6 +4,7 @@ import com.dhc.inspection_system.auth.JwtUtil;
 import com.dhc.inspection_system.dao.ApplicationDAO;
 import com.dhc.inspection_system.dao.LoginDAO;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
+import com.dhc.inspection_system.dto.ApplicationOwnershipInfo;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.ApproveRejectRequest;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
@@ -13,21 +14,32 @@ import com.dhc.inspection_system.dto.LoginUserDTO;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.dto.SendForApprovalRequest;
 import com.dhc.inspection_system.service.ApplicationService;
+import com.dhc.inspection_system.service.InspectionAuditService;
+import com.dhc.inspection_system.utils.InspectionAuditLogHelper;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 public class ApplicationServiceImpl implements ApplicationService {
 
+    // TEMP debug logger for approve audit investigation.
+    private static final Logger log = LoggerFactory.getLogger(ApplicationServiceImpl.class);
+
     @Autowired
     private ApplicationDAO applicationDAO;
 
     @Autowired
     private LoginDAO loginDAO;
+
+    @Autowired
+    private InspectionAuditService inspectionAuditService;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -152,7 +164,11 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
-    public int approveApplication(ApproveRejectRequest request) {
+    @Transactional(rollbackFor = Exception.class)
+    public int approveApplication(String authorization, ApproveRejectRequest request) {
+        log.info("[APPROVE-AUDIT] approveApplication entered: diaryNo={}, diaryYr={}",
+                request.getDiaryNo(), request.getDiaryYr());
+
         if (request.getDiaryNo() == null) {
             throw new IllegalArgumentException("diaryNo must not be null");
         }
@@ -161,19 +177,81 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw new IllegalArgumentException("diaryYr must not be null");
         }
 
+        String loggedInUsername = extractUsernameFromAuthorization(authorization);
+        log.info("[APPROVE-AUDIT] JWT username extracted: {}", loggedInUsername);
+        LoginUserDTO loggedInUser = null;
+
+        if (loggedInUsername != null && !loggedInUsername.isBlank()) {
+            loggedInUser = loginDAO.getUserByUsername(loggedInUsername);
+        }
+
+        String loggedInRole = loggedInUser != null ? loggedInUser.getRole() : null;
+
+        if (!"INSPECTIONAPPROVER".equals(loggedInRole)) {
+            throw new AccessDeniedException(
+                    "Only Inspection Approver can approve applications."
+            );
+        }
+
+        validateApproverOwnership(
+                request.getDiaryNo(),
+                request.getDiaryYr(),
+                loggedInUsername
+        );
+
+        ApplicationDetailsResponse applicationDetails =
+                applicationDAO.getApplicationDetails(
+                        request.getDiaryNo(),
+                        request.getDiaryYr()
+                );
+
         try {
-            return applicationDAO.approveApplication(
+            int updatedRows = applicationDAO.approveApplication(
                     request.getDiaryNo(),
                     request.getDiaryYr(),
                     request.getRemarks()
             );
+            log.info("[APPROVE-AUDIT] updatedRows={}", updatedRows);
+
+            if (updatedRows > 0) {
+                log.info("[APPROVE-AUDIT] entering if(updatedRows > 0)");
+                String approverName = applicationDetails != null
+                        ? applicationDetails.getApplappbyname()
+                        : "";
+                String description = InspectionAuditLogHelper.buildApproveDescription(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        approverName,
+                        loggedInUsername,
+                        request.getRemarks()
+                );
+                log.info("[APPROVE-AUDIT] description generated: {}", description);
+
+                log.info("[APPROVE-AUDIT] before calling inspectionAuditService.saveInspectionAuditLog");
+                int logRows = inspectionAuditService.saveInspectionAuditLog(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        description,
+                        loggedInUsername
+                );
+                log.info("[APPROVE-AUDIT] returned logRows={}", logRows);
+
+                if (logRows <= 0) {
+                    throw new RuntimeException("Failed to insert efiling_log");
+                }
+            }
+
+            log.info("[APPROVE-AUDIT] method exit: returning updatedRows={}", updatedRows);
+            return updatedRows;
         } catch (Exception e) {
+            log.info("[APPROVE-AUDIT] exception in approveApplication: {}", e.toString());
             e.printStackTrace();
             throw e;
         }
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int rejectApplication(String authorization, ApproveRejectRequest request) {
         if (request.getDiaryNo() == null) {
             throw new IllegalArgumentException("diaryNo must not be null");
@@ -193,35 +271,111 @@ public class ApplicationServiceImpl implements ApplicationService {
 
             String loggedInRole = loggedInUser != null ? loggedInUser.getRole() : null;
 
-            if ("ONLINEINSPECTION".equals(loggedInRole)) {
-                return applicationDAO.rejectApplicationByOfficer(
-                        request.getDiaryNo(),
-                        request.getDiaryYr(),
-                        request.getRemarks()
-                );
-            }
-
             if ("INSPECTIONAPPROVER".equals(loggedInRole)) {
-                return applicationDAO.rejectApplication(
+                validateApproverOwnership(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        loggedInUsername
+                );
+            }
+
+            ApplicationDetailsResponse applicationDetails =
+                    applicationDAO.getApplicationDetails(
+                            request.getDiaryNo(),
+                            request.getDiaryYr()
+                    );
+
+            int updatedRows;
+            if ("ONLINEINSPECTION".equals(loggedInRole)) {
+                String currentStatus = applicationDetails != null
+                        ? applicationDetails.getStatus()
+                        : null;
+                if (!"P".equals(currentStatus) && !"K".equals(currentStatus)) {
+                    throw new AccessDeniedException(
+                            "Application cannot be rejected in its current status."
+                    );
+                }
+
+                updatedRows = applicationDAO.rejectApplicationByOfficer(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        request.getRemarks()
+                );
+            } else {
+                updatedRows = applicationDAO.rejectApplication(
                         request.getDiaryNo(),
                         request.getDiaryYr(),
                         request.getRemarks()
                 );
             }
 
-            return applicationDAO.rejectApplication(
-                    request.getDiaryNo(),
-                    request.getDiaryYr(),
-                    request.getRemarks()
-            );
+            if (updatedRows > 0) {
+                String rejectorName;
+                if ("ONLINEINSPECTION".equals(loggedInRole)) {
+                    rejectorName = applicationDetails != null
+                            ? applicationDetails.getAssignedname()
+                            : "";
+                } else {
+                    rejectorName = applicationDetails != null
+                            ? applicationDetails.getApplappbyname()
+                            : "";
+                }
+                String description = InspectionAuditLogHelper.buildRejectDescription(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        rejectorName,
+                        loggedInUsername,
+                        request.getRemarks()
+                );
+
+                int logRows = inspectionAuditService.saveInspectionAuditLog(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        description,
+                        loggedInUsername
+                );
+
+                if (logRows <= 0) {
+                    throw new RuntimeException("Failed to insert efiling_log");
+                }
+            }
+
+            return updatedRows;
+        } catch (AccessDeniedException e) {
+            throw e;
         } catch (Exception e) {
             e.printStackTrace();
             throw e;
         }
     }
 
+    private void validateApproverOwnership(int diaryNo, int diaryYr, String loggedInUsername) {
+        ApplicationOwnershipInfo ownershipInfo =
+                applicationDAO.getStatusAndApplappby(diaryNo, diaryYr);
+
+        if (ownershipInfo == null) {
+            throw new IllegalArgumentException("Application not found.");
+        }
+
+        if (!"T".equals(ownershipInfo.getStatus())) {
+            throw new AccessDeniedException(
+                    "Application is not pending approval."
+            );
+        }
+
+        String applappby = ownershipInfo.getApplappby();
+        if (applappby == null
+                || loggedInUsername == null
+                || !applappby.equals(loggedInUsername)) {
+            throw new AccessDeniedException(
+                    "You are not authorized to process this application."
+            );
+        }
+    }
+
     @Override
-    public int sendForApproval(SendForApprovalRequest request) {
+    @Transactional(rollbackFor = Exception.class)
+    public int sendForApproval(String authorization, SendForApprovalRequest request) {
         if (request.getDiaryNo() == null) {
             throw new IllegalArgumentException("diaryNo must not be null");
         }
@@ -238,8 +392,36 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw new IllegalArgumentException("approverName must not be null or blank");
         }
 
+        String actor = extractUsernameFromAuthorization(authorization);
+        if (actor == null || actor.isBlank()) {
+            throw new IllegalArgumentException("Authorization is required");
+        }
+
         try {
-            return applicationDAO.sendForApproval(request);
+            int updatedRows = applicationDAO.sendForApproval(request);
+
+            if (updatedRows > 0) {
+                String description = InspectionAuditLogHelper.buildForwardDescription(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        request.getApproverName(),
+                        request.getApproverId(),
+                        request.getRemarks()
+                );
+
+                int logRows = inspectionAuditService.saveInspectionAuditLog(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        description,
+                        actor
+                );
+
+                if (logRows <= 0) {
+                    throw new RuntimeException("Failed to insert efiling_log");
+                }
+            }
+
+            return updatedRows;
         } catch (Exception e) {
             e.printStackTrace();
             throw e;

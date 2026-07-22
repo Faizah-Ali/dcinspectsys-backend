@@ -1,7 +1,9 @@
 package com.dhc.inspection_system.dao.impl;
 
 import com.dhc.inspection_system.dao.UploadHistoryDAO;
+import com.dhc.inspection_system.dto.InspectionLogResponse;
 import com.dhc.inspection_system.dto.UploadHistoryResponse;
+import com.dhc.inspection_system.dto.UserCommentResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -55,6 +57,66 @@ public class UploadHistoryDAOImpl implements UploadHistoryDAO {
                 },
                 diaryNo,
                 diaryYr
+        );
+    }
+
+    @Override
+    public List<InspectionLogResponse> getInspectionLogs(Integer diaryNo, Integer diaryYr) {
+        String sql = """
+            SELECT
+                entry_date,
+                description,
+                actor
+            FROM judl.efiling_log
+            WHERE source = 'e-Inspection'
+              AND diaryno = ?
+              AND diary_yr = ?
+            ORDER BY entry_date DESC
+            """;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> {
+                    InspectionLogResponse obj = new InspectionLogResponse();
+
+                    Timestamp entryDate = rs.getTimestamp("entry_date");
+                    if (entryDate != null) {
+                        obj.setEntryDate(entryDate.toLocalDateTime());
+                    }
+
+                    obj.setDescription(rs.getString("description"));
+                    obj.setActor(rs.getString("actor"));
+                    return obj;
+                },
+                diaryNo,
+                diaryYr
+        );
+    }
+
+    @Override
+    public List<UserCommentResponse> getUserComments(Integer diaryNo, Integer diaryYr) {
+        String sql = """
+            SELECT
+                content,
+                author,
+                commentposting_dt
+            FROM judl.dropbox_comment
+            WHERE item_id = ?
+            ORDER BY commentposting_dt
+            """;
+
+        String itemId = diaryNo + "_" + diaryYr;
+
+        return jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> {
+                    UserCommentResponse obj = new UserCommentResponse();
+                    obj.setContent(rs.getString("content"));
+                    obj.setAuthor(rs.getString("author"));
+                    obj.setCommentDate(rs.getString("commentposting_dt"));
+                    return obj;
+                },
+                itemId
         );
     }
 
