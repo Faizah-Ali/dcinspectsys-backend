@@ -397,10 +397,8 @@ public class ApplicationDAOImpl implements ApplicationDAO {
         String sql = """
             UPDATE judl.inspection_user_online
             SET
-                status='T',
                 applappby=?,
-                applappbyname=?,
-                remarks=?
+                applappbyname=?
             WHERE diary_no=?
             AND diary_yr=?
             """;
@@ -409,7 +407,6 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                 sql,
                 request.getApproverId(),
                 request.getApproverName(),
-                request.getRemarks(),
                 request.getDiaryNo(),
                 request.getDiaryYr()
         );

@@ -225,7 +225,10 @@ public class ApplicationController {
             @RequestBody ForwardApplicationRequest request
     ) {
         try {
-            int updatedRows = applicationService.forwardApplication(request);
+            int updatedRows = applicationService.forwardApplication(
+                    httpServletRequest.getHeader("Authorization"),
+                    request
+            );
 
             if (updatedRows > 0) {
                 Map<String, String> response = new HashMap<>();

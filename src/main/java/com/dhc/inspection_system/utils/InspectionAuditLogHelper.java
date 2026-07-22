@@ -30,6 +30,21 @@ public final class InspectionAuditLogHelper {
                 + nullSafeRemarks(remarks);
     }
 
+    public static String buildApproverForwardDescription(
+            int diaryNo,
+            int diaryYr,
+            String approverName,
+            String approverId,
+            String remarks
+    ) {
+        return "e-Inspection application filed vide Reference No. "
+                + diaryNo + "/" + diaryYr
+                + " is Assigned to :"
+                + formatEmployeeIdentity(approverName, approverId)
+                + " for further directions. Comment is :"
+                + nullSafeRemarks(remarks);
+    }
+
     public static String buildApproveDescription(
             int diaryNo,
             int diaryYr,

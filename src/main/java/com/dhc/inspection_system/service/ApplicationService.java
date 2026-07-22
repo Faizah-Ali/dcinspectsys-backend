@@ -32,7 +32,7 @@ public interface ApplicationService {
 
     int sendForApproval(String authorization, SendForApprovalRequest request);
 
-    int forwardApplication(ForwardApplicationRequest request);
+    int forwardApplication(String authorization, ForwardApplicationRequest request);
 
     int completeApplication(CompleteApplicationRequest request);
 }

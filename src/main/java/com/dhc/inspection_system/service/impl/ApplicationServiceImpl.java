@@ -429,7 +429,8 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
-    public int forwardApplication(ForwardApplicationRequest request) {
+    @Transactional(rollbackFor = Exception.class)
+    public int forwardApplication(String authorization, ForwardApplicationRequest request) {
         if (request.getDiaryNo() == null) {
             throw new IllegalArgumentException("diaryNo must not be null");
         }
@@ -446,8 +447,36 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw new IllegalArgumentException("approverName must not be null or blank");
         }
 
+        String actor = extractUsernameFromAuthorization(authorization);
+        if (actor == null || actor.isBlank()) {
+            throw new IllegalArgumentException("Authorization is required");
+        }
+
         try {
-            return applicationDAO.forwardApplication(request);
+            int updatedRows = applicationDAO.forwardApplication(request);
+
+            if (updatedRows > 0) {
+                String description = InspectionAuditLogHelper.buildApproverForwardDescription(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        request.getApproverName(),
+                        request.getApproverId(),
+                        request.getRemarks()
+                );
+
+                int logRows = inspectionAuditService.saveInspectionAuditLog(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        description,
+                        actor
+                );
+
+                if (logRows <= 0) {
+                    throw new RuntimeException("Failed to insert efiling_log");
+                }
+            }
+
+            return updatedRows;
         } catch (Exception e) {
             e.printStackTrace();
             throw e;
