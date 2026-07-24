@@ -74,4 +74,18 @@ public final class InspectionAuditLogHelper {
                 + ". Reason of rejection :"
                 + nullSafeRemarks(remarks);
     }
+
+    public static String buildCompleteDescription(
+            int diaryNo,
+            int diaryYr,
+            String username,
+            String fullName
+    ) {
+        String user = username == null ? "" : username;
+        String name = fullName == null ? "" : fullName;
+        return "e-Inspection application filed vide Reference No. "
+                + diaryNo + "/" + diaryYr
+                + " is marked completd by :"
+                + user + "(" + name + ")";
+    }
 }

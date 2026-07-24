@@ -34,5 +34,5 @@ public interface ApplicationService {
 
     int forwardApplication(String authorization, ForwardApplicationRequest request);
 
-    int completeApplication(CompleteApplicationRequest request);
+    int completeApplication(String authorization, CompleteApplicationRequest request);
 }

@@ -484,10 +484,19 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
-    public int completeApplication(CompleteApplicationRequest request) {
+    @Transactional(rollbackFor = Exception.class)
+    public int completeApplication(String authorization, CompleteApplicationRequest request) {
         if (request.getDiaryNo() == null || request.getDiaryYr() == null) {
             throw new IllegalArgumentException("Diary number and year are required.");
         }
+
+        String loggedInUsername = extractUsernameFromAuthorization(authorization);
+        if (loggedInUsername == null || loggedInUsername.isBlank()) {
+            throw new IllegalArgumentException("Authorization is required");
+        }
+
+        LoginUserDTO loggedInUser = loginDAO.getUserByUsername(loggedInUsername);
+        String loggedInRole = loggedInUser != null ? loggedInUser.getRole() : null;
 
         try {
             if (!applicationDAO.hasDataShareReceiverDetails(
@@ -499,11 +508,53 @@ public class ApplicationServiceImpl implements ApplicationService {
                 );
             }
 
-            return applicationDAO.completeApplication(
+            int updatedRows = applicationDAO.completeApplication(
                     request.getDiaryNo(),
                     request.getDiaryYr(),
                     request.getRemarks()
             );
+
+            if (updatedRows > 0) {
+                ApplicationDetailsResponse applicationDetails =
+                        applicationDAO.getApplicationDetails(
+                                request.getDiaryNo(),
+                                request.getDiaryYr()
+                        );
+
+                String fullName;
+                if ("ONLINEINSPECTION".equals(loggedInRole)) {
+                    fullName = applicationDetails != null
+                            ? applicationDetails.getAssignedname()
+                            : "";
+                } else {
+                    fullName = applicationDetails != null
+                            ? applicationDetails.getApplappbyname()
+                            : "";
+                }
+                if (fullName == null) {
+                    fullName = "";
+                }
+
+                String description = InspectionAuditLogHelper.buildCompleteDescription(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        loggedInUsername,
+                        fullName
+                );
+
+                int logRows = inspectionAuditService.saveInspectionAuditLog(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        description,
+                        loggedInUsername
+                );
+
+                if (logRows <= 0) {
+                    throw new RuntimeException("Failed to insert efiling_log");
+                }
+            }
+
+            return updatedRows;
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
