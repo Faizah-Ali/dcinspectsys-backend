@@ -3,6 +3,7 @@ package com.dhc.inspection_system.service.impl;
 import com.dhc.inspection_system.auth.JwtUtil;
 import com.dhc.inspection_system.dao.ApplicationDAO;
 import com.dhc.inspection_system.dao.LoginDAO;
+import com.dhc.inspection_system.dao.UploadHistoryDAO;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationOwnershipInfo;
 import com.dhc.inspection_system.dto.ApplicationResponse;
@@ -37,6 +38,9 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Autowired
     private LoginDAO loginDAO;
+
+    @Autowired
+    private UploadHistoryDAO uploadHistoryDAO;
 
     @Autowired
     private InspectionAuditService inspectionAuditService;
@@ -91,10 +95,14 @@ public class ApplicationServiceImpl implements ApplicationService {
             unassignedOnly = true;
         }
 
-        // Pending Applications (ONLINEINSPECTION): assigned to logged-in user.
-        if ("ONLINEINSPECTION".equals(loggedInRole) && inboxRequest) {
+        // Inspection Officer views are always restricted to the logged-in assignee.
+        if ("ONLINEINSPECTION".equals(loggedInRole)) {
             owner = null;
             assigned = loggedInUsername;
+        }
+
+        // Pending Applications (ONLINEINSPECTION): keep legacy inbox statuses.
+        if ("ONLINEINSPECTION".equals(loggedInRole) && inboxRequest) {
             statuses = List.of("N", "P", "T", "K");
             unassignedOnly = false;
         }
@@ -123,6 +131,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int assignApplication(String authorization, AssignApplicationRequest request) {
         String loggedInUsername = extractUsernameFromAuthorization(authorization);
         LoginUserDTO loggedInUser = null;
@@ -156,7 +165,18 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
 
         try {
-            return applicationDAO.assignApplication(request);
+            int updatedRows = applicationDAO.assignApplication(request);
+
+            if (updatedRows > 0) {
+                saveOfficeCommentIfPresent(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        request.getRemarks(),
+                        loggedInUsername
+                );
+            }
+
+            return updatedRows;
         } catch (Exception e) {
             e.printStackTrace();
             throw e;
@@ -214,6 +234,13 @@ public class ApplicationServiceImpl implements ApplicationService {
             log.info("[APPROVE-AUDIT] updatedRows={}", updatedRows);
 
             if (updatedRows > 0) {
+                saveOfficeCommentIfPresent(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        request.getRemarks(),
+                        loggedInUsername
+                );
+
                 log.info("[APPROVE-AUDIT] entering if(updatedRows > 0)");
                 String approverName = applicationDetails != null
                         ? applicationDetails.getApplappbyname()
@@ -325,6 +352,13 @@ public class ApplicationServiceImpl implements ApplicationService {
             }
 
             if (updatedRows > 0) {
+                saveOfficeCommentIfPresent(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        request.getRemarks(),
+                        loggedInUsername
+                );
+
                 String rejectorName;
                 if ("ONLINEINSPECTION".equals(loggedInRole)) {
                     rejectorName = applicationDetails != null
@@ -449,6 +483,13 @@ public class ApplicationServiceImpl implements ApplicationService {
             int updatedRows = applicationDAO.sendForApproval(request);
 
             if (updatedRows > 0) {
+                saveOfficeCommentIfPresent(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        request.getRemarks(),
+                        actor
+                );
+
                 String description = InspectionAuditLogHelper.buildForwardDescription(
                         request.getDiaryNo(),
                         request.getDiaryYr(),
@@ -519,6 +560,13 @@ public class ApplicationServiceImpl implements ApplicationService {
             int updatedRows = applicationDAO.forwardApplication(request);
 
             if (updatedRows > 0) {
+                saveOfficeCommentIfPresent(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        request.getRemarks(),
+                        actor
+                );
+
                 String description = InspectionAuditLogHelper.buildApproverForwardDescription(
                         request.getDiaryNo(),
                         request.getDiaryYr(),
@@ -608,6 +656,13 @@ public class ApplicationServiceImpl implements ApplicationService {
             );
 
             if (updatedRows > 0) {
+                saveOfficeCommentIfPresent(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        request.getRemarks(),
+                        loggedInUsername
+                );
+
                 ApplicationDetailsResponse completedDetails =
                         applicationDAO.getApplicationDetails(
                                 request.getDiaryNo(),
@@ -671,5 +726,29 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
 
         return jwtUtil.extractUsername(token);
+    }
+
+    private void saveOfficeCommentIfPresent(
+            Integer diaryNo,
+            Integer diaryYr,
+            String remarks,
+            String actor
+    ) {
+        if (diaryNo == null || diaryYr == null) {
+            return;
+        }
+
+        if (actor == null || actor.isBlank()) {
+            return;
+        }
+
+        if (remarks == null || remarks.isBlank()) {
+            return;
+        }
+
+        int insertedRows = uploadHistoryDAO.saveOfficeComment(diaryNo, diaryYr, remarks, actor);
+        if (insertedRows <= 0) {
+            throw new RuntimeException("Failed to insert dropbox_comment");
+        }
     }
 }

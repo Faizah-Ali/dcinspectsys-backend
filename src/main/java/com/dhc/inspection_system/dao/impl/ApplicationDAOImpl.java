@@ -179,6 +179,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                             + " OR CAST(diary_yr AS TEXT) LIKE ? "
                             + " OR LOWER(case_title) LIKE LOWER(?) "
                             + " OR LOWER(ecourt_fee_id) LIKE LOWER(?) "
+                            + " OR LOWER(remarks) LIKE LOWER(?) "
                             + " OR LOWER(CAST(applied_date AS TEXT)) LIKE LOWER(?) "
                             + " OR LOWER(status) LIKE LOWER(?) "
                             + " OR LOWER(case_status) LIKE LOWER(?) "
@@ -186,8 +187,8 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             );
 
             String like = "%" + search.trim() + "%";
-            // 11 placeholders -> 11 bound values, all parameterized (no concat).
-            for (int i = 0; i < 11; i++) {
+            // 12 placeholders -> 12 bound values, all parameterized (no concat).
+            for (int i = 0; i < 12; i++) {
                 filterParams.add(like);
             }
         }

@@ -97,12 +97,14 @@ public class UploadHistoryDAOImpl implements UploadHistoryDAO {
     public List<UserCommentResponse> getUserComments(Integer diaryNo, Integer diaryYr) {
         String sql = """
             SELECT
-                content,
-                author,
-                commentposting_dt
-            FROM judl.dropbox_comment
-            WHERE item_id = ?
-            ORDER BY commentposting_dt
+                D.content,
+                P.emp_name AS author,
+                D.commentposting_dt
+            FROM judl.dropbox_comment D
+            INNER JOIN access.pis_employees P
+                ON D.author = P.emp_code
+            WHERE D.item_id = ?
+            ORDER BY D.commentposting_dt DESC
             """;
 
         String itemId = diaryNo + "_" + diaryYr;
@@ -118,6 +120,34 @@ public class UploadHistoryDAOImpl implements UploadHistoryDAO {
                 },
                 itemId
         );
+    }
+
+    @Override
+    public int saveOfficeComment(Integer diaryNo, Integer diaryYr, String content, String author) {
+        String sql = """
+            INSERT INTO judl.dropbox_comment
+            (
+                item_id,
+                content,
+                author,
+                commentposting_dt,
+                document_id,
+                rowuniqueid
+            )
+            VALUES
+            (
+                ?,
+                ?,
+                ?,
+                CURRENT_TIMESTAMP,
+                NULL,
+                ?
+            )
+            """;
+
+        String itemId = diaryNo + "_" + diaryYr;
+
+        return jdbcTemplate.update(sql, itemId, content, author, itemId);
     }
 
 }

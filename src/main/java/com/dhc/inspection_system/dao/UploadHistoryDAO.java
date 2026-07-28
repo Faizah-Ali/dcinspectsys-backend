@@ -14,4 +14,6 @@ public interface UploadHistoryDAO {
 
     List<UserCommentResponse> getUserComments(Integer diaryNo, Integer diaryYr);
 
+    int saveOfficeComment(Integer diaryNo, Integer diaryYr, String content, String author);
+
 }
