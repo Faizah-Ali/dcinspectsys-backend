@@ -263,13 +263,19 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         try {
             String loggedInUsername = extractUsernameFromAuthorization(authorization);
-            LoginUserDTO loggedInUser = null;
-
-            if (loggedInUsername != null && !loggedInUsername.isBlank()) {
-                loggedInUser = loginDAO.getUserByUsername(loggedInUsername);
+            if (loggedInUsername == null || loggedInUsername.isBlank()) {
+                throw new IllegalArgumentException("Authorization is required");
             }
 
+            LoginUserDTO loggedInUser = loginDAO.getUserByUsername(loggedInUsername);
             String loggedInRole = loggedInUser != null ? loggedInUser.getRole() : null;
+
+            if (!"ONLINEINSPECTION".equals(loggedInRole)
+                    && !"INSPECTIONAPPROVER".equals(loggedInRole)) {
+                throw new AccessDeniedException(
+                        "Only Inspection Officer or Inspection Approver can reject applications."
+                );
+            }
 
             if ("INSPECTIONAPPROVER".equals(loggedInRole)) {
                 validateApproverOwnership(
@@ -293,6 +299,15 @@ public class ApplicationServiceImpl implements ApplicationService {
                 if (!"P".equals(currentStatus) && !"K".equals(currentStatus)) {
                     throw new AccessDeniedException(
                             "Application cannot be rejected in its current status."
+                    );
+                }
+
+                String assigned = applicationDetails != null
+                        ? applicationDetails.getAssigned()
+                        : null;
+                if (assigned == null || !assigned.equals(loggedInUsername)) {
+                    throw new AccessDeniedException(
+                            "You are not authorized to process this application."
                     );
                 }
 
@@ -397,6 +412,39 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw new IllegalArgumentException("Authorization is required");
         }
 
+        LoginUserDTO loggedInUser = loginDAO.getUserByUsername(actor);
+        String loggedInRole = loggedInUser != null ? loggedInUser.getRole() : null;
+
+        if (!"ONLINEINSPECTION".equals(loggedInRole)) {
+            throw new AccessDeniedException(
+                    "Only Inspection Officer can send applications for approval."
+            );
+        }
+
+        ApplicationDetailsResponse applicationDetails =
+                applicationDAO.getApplicationDetails(
+                        request.getDiaryNo(),
+                        request.getDiaryYr()
+                );
+
+        String currentStatus = applicationDetails != null
+                ? applicationDetails.getStatus()
+                : null;
+        if (!"N".equals(currentStatus)) {
+            throw new AccessDeniedException(
+                    "Application cannot be sent for approval in its current status."
+            );
+        }
+
+        String assigned = applicationDetails != null
+                ? applicationDetails.getAssigned()
+                : null;
+        if (assigned == null || !assigned.equals(actor)) {
+            throw new AccessDeniedException(
+                    "You are not authorized to process this application."
+            );
+        }
+
         try {
             int updatedRows = applicationDAO.sendForApproval(request);
 
@@ -452,6 +500,21 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw new IllegalArgumentException("Authorization is required");
         }
 
+        LoginUserDTO loggedInUser = loginDAO.getUserByUsername(actor);
+        String loggedInRole = loggedInUser != null ? loggedInUser.getRole() : null;
+
+        if (!"INSPECTIONAPPROVER".equals(loggedInRole)) {
+            throw new AccessDeniedException(
+                    "Only Inspection Approver can forward applications."
+            );
+        }
+
+        validateApproverOwnership(
+                request.getDiaryNo(),
+                request.getDiaryYr(),
+                actor
+        );
+
         try {
             int updatedRows = applicationDAO.forwardApplication(request);
 
@@ -498,6 +561,36 @@ public class ApplicationServiceImpl implements ApplicationService {
         LoginUserDTO loggedInUser = loginDAO.getUserByUsername(loggedInUsername);
         String loggedInRole = loggedInUser != null ? loggedInUser.getRole() : null;
 
+        if (!"ONLINEINSPECTION".equals(loggedInRole)) {
+            throw new AccessDeniedException(
+                    "Only Inspection Officer can complete applications."
+            );
+        }
+
+        ApplicationDetailsResponse applicationDetails =
+                applicationDAO.getApplicationDetails(
+                        request.getDiaryNo(),
+                        request.getDiaryYr()
+                );
+
+        String currentStatus = applicationDetails != null
+                ? applicationDetails.getStatus()
+                : null;
+        if (!"P".equals(currentStatus)) {
+            throw new AccessDeniedException(
+                    "Application cannot be completed in its current status."
+            );
+        }
+
+        String assigned = applicationDetails != null
+                ? applicationDetails.getAssigned()
+                : null;
+        if (assigned == null || !assigned.equals(loggedInUsername)) {
+            throw new AccessDeniedException(
+                    "You are not authorized to process this application."
+            );
+        }
+
         try {
             if (!applicationDAO.hasDataShareReceiverDetails(
                     request.getDiaryNo(),
@@ -515,7 +608,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             );
 
             if (updatedRows > 0) {
-                ApplicationDetailsResponse applicationDetails =
+                ApplicationDetailsResponse completedDetails =
                         applicationDAO.getApplicationDetails(
                                 request.getDiaryNo(),
                                 request.getDiaryYr()
@@ -523,12 +616,12 @@ public class ApplicationServiceImpl implements ApplicationService {
 
                 String fullName;
                 if ("ONLINEINSPECTION".equals(loggedInRole)) {
-                    fullName = applicationDetails != null
-                            ? applicationDetails.getAssignedname()
+                    fullName = completedDetails != null
+                            ? completedDetails.getAssignedname()
                             : "";
                 } else {
-                    fullName = applicationDetails != null
-                            ? applicationDetails.getApplappbyname()
+                    fullName = completedDetails != null
+                            ? completedDetails.getApplappbyname()
                             : "";
                 }
                 if (fullName == null) {

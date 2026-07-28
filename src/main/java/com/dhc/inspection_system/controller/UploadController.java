@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,6 +38,11 @@ public class UploadController {
             String documentLabel = uploadedCount == 1 ? "document" : "documents";
             response.put("message", uploadedCount + " " + documentLabel + " uploaded successfully.");
             return ResponseEntity.ok(response);
+
+        } catch (AccessDeniedException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
 
         } catch (IllegalArgumentException e) {
             Map<String, String> errorResponse = new HashMap<>();

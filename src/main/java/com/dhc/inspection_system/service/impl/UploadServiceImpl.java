@@ -1,13 +1,18 @@
 package com.dhc.inspection_system.service.impl;
 
 import com.dhc.inspection_system.auth.JwtUtil;
+import com.dhc.inspection_system.dao.ApplicationDAO;
+import com.dhc.inspection_system.dao.LoginDAO;
 import com.dhc.inspection_system.dao.UploadDAO;
+import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
+import com.dhc.inspection_system.dto.LoginUserDTO;
 import com.dhc.inspection_system.dto.UploadApplicantDetails;
 import com.dhc.inspection_system.service.InspectionAuditService;
 import com.dhc.inspection_system.service.UploadService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -29,6 +34,12 @@ public class UploadServiceImpl implements UploadService {
 
     @Autowired
     private UploadDAO uploadDAO;
+
+    @Autowired
+    private ApplicationDAO applicationDAO;
+
+    @Autowired
+    private LoginDAO loginDAO;
 
     @Autowired
     private InspectionAuditService inspectionAuditService;
@@ -57,6 +68,15 @@ public class UploadServiceImpl implements UploadService {
             throw new IllegalArgumentException("Authorization is required");
         }
 
+        LoginUserDTO loggedInUser = loginDAO.getUserByUsername(entryBy);
+        String loggedInRole = loggedInUser != null ? loggedInUser.getRole() : null;
+
+        if (!"ONLINEINSPECTION".equals(loggedInRole)) {
+            throw new AccessDeniedException(
+                    "Only Inspection Officer can upload inspection files."
+            );
+        }
+
         if (files == null || files.length == 0) {
             throw new IllegalArgumentException("files is required");
         }
@@ -75,6 +95,27 @@ public class UploadServiceImpl implements UploadService {
             diaryYrInt = Integer.parseInt(trimmedDiaryYr);
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("diaryNo and diaryYr must be valid numbers");
+        }
+
+        ApplicationDetailsResponse applicationDetails =
+                applicationDAO.getApplicationDetails(diaryNoInt, diaryYrInt);
+
+        String currentStatus = applicationDetails != null
+                ? applicationDetails.getStatus()
+                : null;
+        if (!"P".equals(currentStatus)) {
+            throw new AccessDeniedException(
+                    "Application cannot accept uploads in its current status."
+            );
+        }
+
+        String assigned = applicationDetails != null
+                ? applicationDetails.getAssigned()
+                : null;
+        if (assigned == null || !assigned.equals(entryBy)) {
+            throw new AccessDeniedException(
+                    "You are not authorized to process this application."
+            );
         }
 
         List<Path> savedFiles = new ArrayList<>();
