@@ -6,6 +6,8 @@ import com.dhc.inspection_system.service.EmailQueueService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Calendar;
 import java.util.List;
@@ -19,7 +21,9 @@ public class EmailQueueServiceImpl implements EmailQueueService {
     @Autowired
     private EmailQueueDAO emailQueueDAO;
 
+    // Isolated TX so queue failure cannot mark Complete rollback-only.
     @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public void queueEmailsForCompletedApplication(int diaryNo, int diaryYr) {
         List<OnlineInspectionMessageRow> messages =
                 emailQueueDAO.getOnlineInspectionMessages(diaryNo, diaryYr);

@@ -8,4 +8,12 @@ public interface InspectionAuditService {
             String description,
             String actor
     );
+
+    int saveEfilingLog(
+            int diaryNo,
+            int diaryYr,
+            String description,
+            String actor,
+            String ipAddress
+    );
 }

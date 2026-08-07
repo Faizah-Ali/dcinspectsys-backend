@@ -19,23 +19,36 @@ public class InspectionAuditDAOImpl implements InspectionAuditDAO {
             String description,
             String actor
     ) {
+        return saveEfilingLog(diaryNo, diaryYr, description, actor, null);
+    }
+
+    @Override
+    public int saveEfilingLog(
+            int diaryNo,
+            int diaryYr,
+            String description,
+            String actor,
+            String ipAddress
+    ) {
         String sql = """
-            INSERT INTO judl.efiling_log
+            INSERT INTO judl.EFILING_LOG
             (
-                diaryno,
-                diary_yr,
-                entry_date,
-                source,
-                description,
-                actor
+                DIARYNO,
+                DIARY_YR,
+                SOURCE,
+                DESCRIPTION,
+                ACTOR,
+                ENTRY_DATE,
+                IP
             )
             VALUES
             (
                 ?,
                 ?,
-                CURRENT_TIMESTAMP,
                 'e-Inspection',
                 ?,
+                ?,
+                CURRENT_TIMESTAMP,
                 ?
             )
             """;
@@ -45,7 +58,8 @@ public class InspectionAuditDAOImpl implements InspectionAuditDAO {
                 diaryNo,
                 diaryYr,
                 description,
-                actor
+                actor,
+                ipAddress
         );
     }
 }

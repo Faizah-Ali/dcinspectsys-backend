@@ -9,6 +9,7 @@ import com.dhc.inspection_system.dto.LoginUserDTO;
 import com.dhc.inspection_system.dto.UploadApplicantDetails;
 import com.dhc.inspection_system.service.InspectionAuditService;
 import com.dhc.inspection_system.service.UploadService;
+import com.dhc.inspection_system.utils.OnlineInspectionMessageHelper;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +32,9 @@ public class UploadServiceImpl implements UploadService {
 
     @Value("${inspection.upload.path}")
     private String uploadDirectoryPath;
+
+    @Value("${inspection.download.public-url}")
+    private String downloadPublicUrl;
 
     @Autowired
     private UploadDAO uploadDAO;
@@ -156,8 +160,20 @@ public class UploadServiceImpl implements UploadService {
                     throw new RuntimeException("Failed to insert upload metadata into data_share_receiver_details");
                 }
 
-                String message = buildOnlineInspectionMessage(fileName, uniqueId);
-                String sms = buildPdfPasswordMessage(password);
+                String message = OnlineInspectionMessageHelper.buildEmailMessage(
+                        diaryNoInt,
+                        diaryYrInt,
+                        fileName,
+                        uniqueId,
+                        mobileNo,
+                        downloadPublicUrl
+                );
+                String sms = OnlineInspectionMessageHelper.buildSmsMessage(
+                        password,
+                        diaryNoInt,
+                        diaryYrInt,
+                        fileName
+                );
 
                 int messageRows = uploadDAO.saveOnlineInspectionMessage(
                         diaryNoInt,
@@ -191,22 +207,6 @@ public class UploadServiceImpl implements UploadService {
             deleteSavedFiles(savedFiles);
             throw e;
         }
-    }
-
-    private String buildOnlineInspectionMessage(String fileName, String uniqueId) {
-        return "<p>The PDF file named <strong>" + fileName
-                + "</strong> has been uploaded for e-Inspection.</p>"
-                + "<p>You can download the PDF using the following link: "
-                + "<a href=\"/api/download-inspection-file?uniqueId=" + uniqueId
-                + "\">Download PDF</a></p>"
-                + "<p>Unique ID: <strong>" + uniqueId + "</strong></p>"
-                + "<p><strong>Disclaimer:</strong> This PDF is provided solely to the applicant "
-                + "for e-Inspection purposes and must not be used for any other purpose.</p>";
-    }
-
-    private String buildPdfPasswordMessage(String password) {
-        String pdfPassword = password == null ? "" : password;
-        return "Your password/OTP to open the e-Inspection PDF is: " + pdfPassword;
     }
 
     private void registerFileCleanupOnRollback(List<Path> savedFiles) {

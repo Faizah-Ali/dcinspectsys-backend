@@ -10,15 +10,20 @@ import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.ApproveRejectRequest;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.CompleteApplicationRequest;
+import com.dhc.inspection_system.dto.CourtFeeQueryResult;
 import com.dhc.inspection_system.dto.ForwardApplicationRequest;
 import com.dhc.inspection_system.dto.LoginUserDTO;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.dto.SendForApprovalRequest;
 import com.dhc.inspection_system.service.ApplicationService;
+import com.dhc.inspection_system.service.CourtFeeService;
 import com.dhc.inspection_system.service.EmailQueueService;
 import com.dhc.inspection_system.service.InspectionAuditService;
 import com.dhc.inspection_system.service.SmsQueueService;
+import com.dhc.inspection_system.utils.ClientIpHelper;
 import com.dhc.inspection_system.utils.InspectionAuditLogHelper;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +59,13 @@ public class ApplicationServiceImpl implements ApplicationService {
     private SmsQueueService smsQueueService;
 
     @Autowired
+    private CourtFeeService courtFeeService;
+
+    @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private HttpServletRequest httpServletRequest;
 
     @Override
     public ApplicationDetailsResponse getApplicationDetails(int diaryNo, int diaryYr) {
@@ -124,7 +135,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             unassignedOnly = false;
         }
 
-        return applicationDAO.getApplications(
+        PaginatedResponse<ApplicationResponse> response = applicationDAO.getApplications(
                 owner,
                 assigned,
                 applappby,
@@ -136,6 +147,63 @@ public class ApplicationServiceImpl implements ApplicationService {
                 page,
                 size
         );
+
+        // Legacy getAdminData CERTRQ refresh — current page only; never fails inbox.
+        if ("INSPECTIONADMIN".equals(loggedInRole) && inboxRequest) {
+            refreshAdminInboxCourtFees(response.getContent());
+        }
+
+        return response;
+    }
+
+    private void refreshAdminInboxCourtFees(List<ApplicationResponse> applications) {
+        if (applications == null || applications.isEmpty()) {
+            return;
+        }
+
+        for (ApplicationResponse row : applications) {
+            if (row == null) {
+                continue;
+            }
+
+            try {
+                String ecourtFeeId = row.getEcourtFeeId();
+                if (ecourtFeeId == null || ecourtFeeId.isBlank()) {
+                    continue;
+                }
+
+                String courtFeeAmount = row.getCourtFeeAmount();
+                boolean needsRefresh = courtFeeAmount == null
+                        || courtFeeAmount.isBlank()
+                        || "0".equals(courtFeeAmount);
+                if (!needsRefresh) {
+                    continue;
+                }
+
+                CourtFeeQueryResult result = courtFeeService.queryCourtFee(ecourtFeeId);
+                if (result == null || result.isSkipped()) {
+                    continue;
+                }
+
+                applicationDAO.updateCourtFee(row.getDiaryNo(), row.getDiaryYr(), result);
+
+                if (result.isSuccess()) {
+                    row.setCourtFeeAmount(result.getAmount());
+                    row.setEcourtMessage("VALID COURT FEE");
+                } else {
+                    String message = result.getMessage() == null ? "" : result.getMessage();
+                    row.setCourtFeeAmount("");
+                    row.setEcourtMessage("Error in court fee:" + message);
+                }
+            } catch (Exception ex) {
+                log.error(
+                        "Admin Inbox court-fee refresh failed for diaryNo={}, diaryYr={}",
+                        row.getDiaryNo(),
+                        row.getDiaryYr(),
+                        ex
+                );
+            }
+        }
     }
 
     @Override
@@ -183,23 +251,40 @@ public class ApplicationServiceImpl implements ApplicationService {
                         loggedInUsername
                 );
 
-                String description = InspectionAuditLogHelper.buildAssignDescription(
-                        request.getDiaryNo(),
-                        request.getDiaryYr(),
-                        request.getAssignedname(),
-                        request.getAssigned(),
-                        request.getRemarks()
-                );
+                // Best-effort EFILING_LOG (legacy: failure must not fail assign).
+                try {
+                    String description = InspectionAuditLogHelper.buildAssignDescription(
+                            request.getDiaryNo(),
+                            request.getDiaryYr(),
+                            request.getAssignedname(),
+                            request.getAssigned(),
+                            request.getRemarks()
+                    );
 
-                int logRows = inspectionAuditService.saveInspectionAuditLog(
-                        request.getDiaryNo(),
-                        request.getDiaryYr(),
-                        description,
-                        loggedInUsername
-                );
+                    String ipAddress = ClientIpHelper.getClientIp(httpServletRequest);
 
-                if (logRows <= 0) {
-                    throw new RuntimeException("Failed to insert efiling_log");
+                    int logRows = inspectionAuditService.saveEfilingLog(
+                            request.getDiaryNo(),
+                            request.getDiaryYr(),
+                            description,
+                            loggedInUsername,
+                            ipAddress
+                    );
+
+                    if (logRows <= 0) {
+                        log.error(
+                                "Failed to insert efiling_log for assign diaryNo={}, diaryYr={}",
+                                request.getDiaryNo(),
+                                request.getDiaryYr()
+                        );
+                    }
+                } catch (Exception auditEx) {
+                    log.error(
+                            "Failed to insert efiling_log for assign diaryNo={}, diaryYr={}",
+                            request.getDiaryNo(),
+                            request.getDiaryYr(),
+                            auditEx
+                    );
                 }
             }
 
@@ -784,15 +869,58 @@ public class ApplicationServiceImpl implements ApplicationService {
                     throw new RuntimeException("Failed to insert efiling_log");
                 }
 
-                emailQueueService.queueEmailsForCompletedApplication(
-                        request.getDiaryNo(),
-                        request.getDiaryYr()
-                );
+                // Best-effort notification queues (legacy AcceptAppl: failures must not fail Complete).
+                try {
+                    emailQueueService.queueEmailsForCompletedApplication(
+                            request.getDiaryNo(),
+                            request.getDiaryYr()
+                    );
+                } catch (Exception emailEx) {
+                    log.error(
+                            "Failed to queue email for complete diaryNo={}, diaryYr={}",
+                            request.getDiaryNo(),
+                            request.getDiaryYr(),
+                            emailEx
+                    );
+                }
 
-                smsQueueService.queueSmsForCompletedApplication(
-                        request.getDiaryNo(),
-                        request.getDiaryYr()
-                );
+                try {
+                    smsQueueService.queueSmsForCompletedApplication(
+                            request.getDiaryNo(),
+                            request.getDiaryYr()
+                    );
+                } catch (Exception smsEx) {
+                    log.error(
+                            "Failed to queue SMS for complete diaryNo={}, diaryYr={}",
+                            request.getDiaryNo(),
+                            request.getDiaryYr(),
+                            smsEx
+                    );
+                }
+
+                // Best-effort SHCIL court-fee lock (legacy AcceptAppl: failures must not fail Complete).
+                try {
+                    String ecourtFeeId = completedDetails != null
+                            ? completedDetails.getEcourtFeeId()
+                            : null;
+                    if (ecourtFeeId == null || ecourtFeeId.isBlank()) {
+                        ecourtFeeId = applicationDetails != null
+                                ? applicationDetails.getEcourtFeeId()
+                                : null;
+                    }
+                    courtFeeService.lockCourtFee(
+                            request.getDiaryNo(),
+                            request.getDiaryYr(),
+                            ecourtFeeId
+                    );
+                } catch (Exception courtFeeEx) {
+                    log.error(
+                            "Failed to lock court fee for complete diaryNo={}, diaryYr={}",
+                            request.getDiaryNo(),
+                            request.getDiaryYr(),
+                            courtFeeEx
+                    );
+                }
             } else {
                 String fullName = applicationDetails != null
                         ? applicationDetails.getAssignedname()

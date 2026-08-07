@@ -6,6 +6,8 @@ import com.dhc.inspection_system.service.SmsQueueService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -19,7 +21,9 @@ public class SmsQueueServiceImpl implements SmsQueueService {
     @Autowired
     private SmsQueueDAO smsQueueDAO;
 
+    // Isolated TX so queue failure cannot mark Complete rollback-only.
     @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public void queueSmsForCompletedApplication(int diaryNo, int diaryYr) {
         List<OnlineInspectionSmsRow> messages =
                 smsQueueDAO.getOnlineInspectionSmsMessages(diaryNo, diaryYr);

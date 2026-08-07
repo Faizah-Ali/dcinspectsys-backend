@@ -5,10 +5,13 @@ import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationOwnershipInfo;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
+import com.dhc.inspection_system.dto.CourtFeeQueryResult;
 import com.dhc.inspection_system.dto.ForwardApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.dto.SendForApprovalRequest;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -18,6 +21,8 @@ import java.util.List;
 
 @Repository
 public class ApplicationDAOImpl implements ApplicationDAO {
+
+    private static final Logger log = LoggerFactory.getLogger(ApplicationDAOImpl.class);
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -435,6 +440,64 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             """;
 
         return jdbcTemplate.update(sql, remarks, diaryNo, diaryYr);
+    }
+
+    @Override
+    public boolean updateCourtFee(int diaryNo, int diaryYr, CourtFeeQueryResult result) {
+        String courtFeeAmount;
+        String isCourtfeeLocked;
+        String ecourtMessage;
+
+        if (result != null && result.isSuccess()) {
+            courtFeeAmount = result.getAmount() == null ? "" : result.getAmount();
+            isCourtfeeLocked = "N";
+            ecourtMessage = "VALID COURT FEE";
+        } else {
+            courtFeeAmount = "";
+            isCourtfeeLocked = "";
+            String message = (result == null || result.getMessage() == null)
+                    ? ""
+                    : result.getMessage();
+            ecourtMessage = "Error in court fee:" + message;
+        }
+
+        String sql = """
+            UPDATE judl.inspection_user_online
+            SET
+                court_fee_amount = ?,
+                is_courtfee_locked = ?,
+                ecourtmessage = ?
+            WHERE diary_no = ?
+              AND diary_yr = ?
+            """;
+
+        int updatedRows = jdbcTemplate.update(
+                sql,
+                courtFeeAmount,
+                isCourtfeeLocked,
+                ecourtMessage,
+                diaryNo,
+                diaryYr
+        );
+
+        boolean updated = updatedRows == 1;
+        if (updated) {
+            log.info(
+                    "Updated court fee for diaryNo={}, diaryYr={}, success={}",
+                    diaryNo,
+                    diaryYr,
+                    result != null && result.isSuccess()
+            );
+        } else {
+            log.warn(
+                    "Court fee update affected {} row(s) for diaryNo={}, diaryYr={}",
+                    updatedRows,
+                    diaryNo,
+                    diaryYr
+            );
+        }
+
+        return updated;
     }
 
     @Override

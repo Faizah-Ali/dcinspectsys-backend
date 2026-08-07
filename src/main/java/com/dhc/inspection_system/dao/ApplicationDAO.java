@@ -4,6 +4,7 @@ import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationOwnershipInfo;
 import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.AssignApplicationRequest;
+import com.dhc.inspection_system.dto.CourtFeeQueryResult;
 import com.dhc.inspection_system.dto.ForwardApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.dto.SendForApprovalRequest;
@@ -44,6 +45,11 @@ public interface ApplicationDAO {
     int forwardApplication(ForwardApplicationRequest request);
 
     int completeApplication(int diaryNo, int diaryYr, String remarks);
+
+    /**
+     * Legacy EditDao.update_court_fee — updates amount / locked flag / ecourt message only.
+     */
+    boolean updateCourtFee(int diaryNo, int diaryYr, CourtFeeQueryResult result);
 
     boolean hasDataShareReceiverDetails(int diaryNo, int diaryYr);
 
