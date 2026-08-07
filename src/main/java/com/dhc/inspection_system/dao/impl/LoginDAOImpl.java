@@ -16,7 +16,7 @@ public class LoginDAOImpl implements LoginDAO {
     public LoginUserDTO getUserByUsername(String username) {
 
         String query = """
-    SELECT E.PASS, D.ROLE, D.branch_id
+    SELECT E.PASS, D.ROLE, D.branch_id, D.fullname
     FROM access.PIS_EMPLOYEES E
     INNER JOIN judl.dropbox_user_authorization D
         ON E.EMP_CODE = D.ID
@@ -37,6 +37,7 @@ public class LoginDAOImpl implements LoginDAO {
                         dto.setPassword(rs.getString("PASS"));
                         dto.setRole(rs.getString("ROLE"));
                         dto.setGroup(rs.getString("branch_id"));
+                        dto.setFullName(rs.getString("fullname"));
                         return dto;
                     },
                     username

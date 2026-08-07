@@ -8,5 +8,5 @@ public interface ApproverDao {
 
     List<ApproverResponse> getApproversList();
 
-    List<ApproverResponse> getInspectionApprovers();
+    List<ApproverResponse> getInspectionApprovers(String branchId, String excludeUserId);
 }

@@ -58,7 +58,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                     obj.setOnlineMode(rs.getString("online_mode"));
                     obj.setStatus(rs.getString("status"));
                     obj.setRemarks(rs.getString("remarks"));
-                    // obj.setEmail(rs.getString("email"));
+                    obj.setEmail(rs.getString("email"));
                     obj.setCourtFeeAmount(rs.getString("court_fee_amount"));
                     obj.setIsCourtfeeLocked(rs.getString("is_courtfee_locked"));
                     obj.setCourtFeeReason(rs.getString("court_fee_reason"));
@@ -371,13 +371,19 @@ public class ApplicationDAOImpl implements ApplicationDAO {
     }
 
     @Override
-    public int sendForApproval(SendForApprovalRequest request) {
+    public int sendForApproval(
+            SendForApprovalRequest request,
+            String officerUsername,
+            String officerFullName
+    ) {
         String sql = """
             UPDATE judl.inspection_user_online
             SET
                 status='T',
                 applappby=?,
                 applappbyname=?,
+                assigned=?,
+                assignedname=?,
                 remarks=?
             WHERE diary_no=?
             AND diary_yr=?
@@ -387,6 +393,8 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                 sql,
                 request.getApproverId(),
                 request.getApproverName(),
+                officerUsername,
+                officerFullName,
                 request.getRemarks(),
                 request.getDiaryNo(),
                 request.getDiaryYr()
@@ -434,6 +442,19 @@ public class ApplicationDAOImpl implements ApplicationDAO {
         String sql = """
             SELECT COUNT(1)
             FROM judl.data_share_receiver_details
+            WHERE diary_no = ?
+              AND diary_yr = ?
+            """;
+
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, diaryNo, diaryYr);
+        return count != null && count > 0;
+    }
+
+    @Override
+    public boolean hasOnlineInspectionMessage(int diaryNo, int diaryYr) {
+        String sql = """
+            SELECT COUNT(1)
+            FROM judl.inspection_user_online_message
             WHERE diary_no = ?
               AND diary_yr = ?
             """;

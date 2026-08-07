@@ -8,5 +8,5 @@ public interface ApproverService {
 
     List<ApproverResponse> getApproversList();
 
-    List<ApproverResponse> getInspectionApprovers();
+    List<ApproverResponse> getInspectionApprovers(String authorization);
 }

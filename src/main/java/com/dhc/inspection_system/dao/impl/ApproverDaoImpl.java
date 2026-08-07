@@ -37,12 +37,21 @@ public class ApproverDaoImpl implements ApproverDao {
     }
 
     @Override
-    public List<ApproverResponse> getInspectionApprovers() {
+    public List<ApproverResponse> getInspectionApprovers(
+            String branchId,
+            String excludeUserId
+    ) {
+        if (branchId == null || branchId.isBlank()) {
+            return List.of();
+        }
+
         String sql = """
                 SELECT id, fullname, role
                 FROM judl.dropbox_user_authorization
-                WHERE role='INSPECTIONAPPROVER'
-                ORDER BY fullname ASC
+                WHERE role = 'INSPECTIONAPPROVER'
+                  AND branch_id = ?
+                  AND UPPER(id) <> UPPER(?)
+                ORDER BY fullname DESC
                 """;
 
         return jdbcTemplate.query(
@@ -53,7 +62,9 @@ public class ApproverDaoImpl implements ApproverDao {
                     obj.setFullname(rs.getString("fullname"));
                     obj.setRole(rs.getString("role"));
                     return obj;
-                }
+                },
+                branchId,
+                excludeUserId != null ? excludeUserId : ""
         );
     }
 }

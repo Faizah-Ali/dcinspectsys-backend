@@ -15,6 +15,21 @@ public final class InspectionAuditLogHelper {
         return remarks == null ? "" : remarks;
     }
 
+    public static String buildAssignDescription(
+            int diaryNo,
+            int diaryYr,
+            String assigneeName,
+            String assigneeId,
+            String remarks
+    ) {
+        return "e-Inspection application filed vide Reference No. "
+                + diaryNo + "/" + diaryYr
+                + " is Assigned to :"
+                + formatEmployeeIdentity(assigneeName, assigneeId)
+                + " for Processing. Comment is :"
+                + nullSafeRemarks(remarks);
+    }
+
     public static String buildForwardDescription(
             int diaryNo,
             int diaryYr,
@@ -75,6 +90,19 @@ public final class InspectionAuditLogHelper {
                 + nullSafeRemarks(remarks);
     }
 
+    public static String buildRejectFailureDescription(
+            int diaryNo,
+            int diaryYr,
+            String rejectorName,
+            String username
+    ) {
+        return "e-Inspection application filed vide Reference No. "
+                + diaryNo + "/" + diaryYr
+                + " is not rejected by :"
+                + formatEmployeeIdentity(rejectorName, username)
+                + " due to some technical reason in software.";
+    }
+
     public static String buildCompleteDescription(
             int diaryNo,
             int diaryYr,
@@ -87,5 +115,20 @@ public final class InspectionAuditLogHelper {
                 + diaryNo + "/" + diaryYr
                 + " is marked completd by :"
                 + user + "(" + name + ")";
+    }
+
+    public static String buildCompleteFailureDescription(
+            int diaryNo,
+            int diaryYr,
+            String username,
+            String fullName
+    ) {
+        String user = username == null ? "" : username;
+        String name = fullName == null ? "" : fullName;
+        return "e-Inspection application filed vide Reference No. "
+                + diaryNo + "/" + diaryYr
+                + " is not marked completd by :"
+                + user + "(" + name + ")"
+                + " due to some technical glitch in software .";
     }
 }

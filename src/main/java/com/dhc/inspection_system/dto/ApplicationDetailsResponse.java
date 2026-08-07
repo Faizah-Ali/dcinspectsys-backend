@@ -23,7 +23,7 @@ public class ApplicationDetailsResponse {
     private String onlineMode;
     private String status;
     private String remarks;
-    // private String email;
+    private String email;
     private String courtFeeAmount;
     private String isCourtfeeLocked;
     private String courtFeeReason;
@@ -208,13 +208,13 @@ public class ApplicationDetailsResponse {
         this.remarks = remarks;
     }
 
-    // public String getEmail() {
-    //     return email;
-    // }
+    public String getEmail() {
+        return email;
+    }
 
-    // public void setEmail(String email) {
-    //     this.email = email;
-    // }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
     public String getCourtFeeAmount() {
         return courtFeeAmount;

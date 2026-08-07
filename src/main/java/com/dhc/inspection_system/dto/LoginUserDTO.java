@@ -5,6 +5,7 @@ public class LoginUserDTO {
     private String password;
     private String role;
     private String group;
+    private String fullName;
 
     public String getPassword() {
         return password;
@@ -28,5 +29,13 @@ public class LoginUserDTO {
 
     public void setGroup(String group) {
         this.group = group;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 }

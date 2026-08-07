@@ -4,6 +4,7 @@ import com.dhc.inspection_system.dto.ApproverResponse;
 import com.dhc.inspection_system.service.ApproverService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,7 +23,9 @@ public class ApproverController {
     }
 
     @GetMapping("/inspection-approvers")
-    public List<ApproverResponse> getInspectionApprovers() {
-        return approverService.getInspectionApprovers();
+    public List<ApproverResponse> getInspectionApprovers(
+            @RequestHeader(value = "Authorization", required = false) String authorization
+    ) {
+        return approverService.getInspectionApprovers(authorization);
     }
 }

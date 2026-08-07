@@ -35,13 +35,19 @@ public interface ApplicationDAO {
 
     int rejectApplicationByOfficer(int diaryNo, int diaryYr, String remarks);
 
-    int sendForApproval(SendForApprovalRequest request);
+    int sendForApproval(
+            SendForApprovalRequest request,
+            String officerUsername,
+            String officerFullName
+    );
 
     int forwardApplication(ForwardApplicationRequest request);
 
     int completeApplication(int diaryNo, int diaryYr, String remarks);
 
     boolean hasDataShareReceiverDetails(int diaryNo, int diaryYr);
+
+    boolean hasOnlineInspectionMessage(int diaryNo, int diaryYr);
 
     ApplicationOwnershipInfo getStatusAndApplappby(int diaryNo, int diaryYr);
 }

@@ -15,7 +15,9 @@ import com.dhc.inspection_system.dto.LoginUserDTO;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.dto.SendForApprovalRequest;
 import com.dhc.inspection_system.service.ApplicationService;
+import com.dhc.inspection_system.service.EmailQueueService;
 import com.dhc.inspection_system.service.InspectionAuditService;
+import com.dhc.inspection_system.service.SmsQueueService;
 import com.dhc.inspection_system.utils.InspectionAuditLogHelper;
 
 import org.slf4j.Logger;
@@ -44,6 +46,12 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Autowired
     private InspectionAuditService inspectionAuditService;
+
+    @Autowired
+    private EmailQueueService emailQueueService;
+
+    @Autowired
+    private SmsQueueService smsQueueService;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -174,6 +182,25 @@ public class ApplicationServiceImpl implements ApplicationService {
                         request.getRemarks(),
                         loggedInUsername
                 );
+
+                String description = InspectionAuditLogHelper.buildAssignDescription(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        request.getAssignedname(),
+                        request.getAssigned(),
+                        request.getRemarks()
+                );
+
+                int logRows = inspectionAuditService.saveInspectionAuditLog(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        description,
+                        loggedInUsername
+                );
+
+                if (logRows <= 0) {
+                    throw new RuntimeException("Failed to insert efiling_log");
+                }
             }
 
             return updatedRows;
@@ -387,6 +414,47 @@ public class ApplicationServiceImpl implements ApplicationService {
                 if (logRows <= 0) {
                     throw new RuntimeException("Failed to insert efiling_log");
                 }
+
+                if ("ONLINEINSPECTION".equals(loggedInRole)) {
+                    String email = applicationDetails != null
+                            ? applicationDetails.getEmail()
+                            : null;
+                    emailQueueService.queueRejectEmail(
+                            request.getDiaryNo(),
+                            request.getDiaryYr(),
+                            email,
+                            request.getRemarks()
+                    );
+                }
+            } else {
+                String rejectorName;
+                if ("ONLINEINSPECTION".equals(loggedInRole)) {
+                    rejectorName = applicationDetails != null
+                            ? applicationDetails.getAssignedname()
+                            : "";
+                } else {
+                    rejectorName = applicationDetails != null
+                            ? applicationDetails.getApplappbyname()
+                            : "";
+                }
+
+                String failureDescription = InspectionAuditLogHelper.buildRejectFailureDescription(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        rejectorName,
+                        loggedInUsername
+                );
+
+                int logRows = inspectionAuditService.saveInspectionAuditLog(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        failureDescription,
+                        loggedInUsername
+                );
+
+                if (logRows <= 0) {
+                    throw new RuntimeException("Failed to insert efiling_log");
+                }
             }
 
             return updatedRows;
@@ -479,8 +547,21 @@ public class ApplicationServiceImpl implements ApplicationService {
             );
         }
 
+        String officerFullName = loggedInUser != null && loggedInUser.getFullName() != null
+                ? loggedInUser.getFullName()
+                : "";
+        if (officerFullName.isBlank()
+                && applicationDetails != null
+                && applicationDetails.getAssignedname() != null) {
+            officerFullName = applicationDetails.getAssignedname();
+        }
+
         try {
-            int updatedRows = applicationDAO.sendForApproval(request);
+            int updatedRows = applicationDAO.sendForApproval(
+                    request,
+                    actor,
+                    officerFullName
+            );
 
             if (updatedRows > 0) {
                 saveOfficeCommentIfPresent(
@@ -649,6 +730,15 @@ public class ApplicationServiceImpl implements ApplicationService {
                 );
             }
 
+            if (!applicationDAO.hasOnlineInspectionMessage(
+                    request.getDiaryNo(),
+                    request.getDiaryYr()
+            )) {
+                throw new IllegalArgumentException(
+                        "Please upload the file for e-Inspection. Approval of inspection failed."
+                );
+            }
+
             int updatedRows = applicationDAO.completeApplication(
                     request.getDiaryNo(),
                     request.getDiaryYr(),
@@ -656,13 +746,6 @@ public class ApplicationServiceImpl implements ApplicationService {
             );
 
             if (updatedRows > 0) {
-                saveOfficeCommentIfPresent(
-                        request.getDiaryNo(),
-                        request.getDiaryYr(),
-                        request.getRemarks(),
-                        loggedInUsername
-                );
-
                 ApplicationDetailsResponse completedDetails =
                         applicationDAO.getApplicationDetails(
                                 request.getDiaryNo(),
@@ -694,6 +777,41 @@ public class ApplicationServiceImpl implements ApplicationService {
                         request.getDiaryNo(),
                         request.getDiaryYr(),
                         description,
+                        loggedInUsername
+                );
+
+                if (logRows <= 0) {
+                    throw new RuntimeException("Failed to insert efiling_log");
+                }
+
+                emailQueueService.queueEmailsForCompletedApplication(
+                        request.getDiaryNo(),
+                        request.getDiaryYr()
+                );
+
+                smsQueueService.queueSmsForCompletedApplication(
+                        request.getDiaryNo(),
+                        request.getDiaryYr()
+                );
+            } else {
+                String fullName = applicationDetails != null
+                        ? applicationDetails.getAssignedname()
+                        : "";
+                if (fullName == null) {
+                    fullName = "";
+                }
+
+                String failureDescription = InspectionAuditLogHelper.buildCompleteFailureDescription(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        loggedInUsername,
+                        fullName
+                );
+
+                int logRows = inspectionAuditService.saveInspectionAuditLog(
+                        request.getDiaryNo(),
+                        request.getDiaryYr(),
+                        failureDescription,
                         loggedInUsername
                 );
 
