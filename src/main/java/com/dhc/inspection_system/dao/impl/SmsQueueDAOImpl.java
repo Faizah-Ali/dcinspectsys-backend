@@ -18,10 +18,18 @@ public class SmsQueueDAOImpl implements SmsQueueDAO {
     @Override
     public List<OnlineInspectionSmsRow> getOnlineInspectionSmsMessages(int diaryNo, int diaryYr) {
         String sql = """
-            SELECT sms, mobile
-            FROM judl.inspection_user_online_message
-            WHERE diary_no = ?
-              AND diary_yr = ?
+            SELECT m.sms, m.mobile
+            FROM judl.inspection_user_online_message m
+            WHERE m.diary_no = ?
+              AND m.diary_yr = ?
+              AND EXISTS (
+                  SELECT 1
+                  FROM judl.data_share_receiver_details d
+                  WHERE d.diary_no = m.diary_no
+                    AND d.diary_yr = m.diary_yr
+                    AND d.file_upload_flag = 'A'
+                    AND m.message LIKE '%a=' || d.uniqueid || '%'
+              )
             """;
 
         return jdbcTemplate.query(

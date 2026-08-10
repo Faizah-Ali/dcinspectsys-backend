@@ -29,7 +29,8 @@ public class UploadHistoryDAOImpl implements UploadHistoryDAO {
                 COALESCE(diary_yr,0) AS diary_yr,
                 mobile_no,
                 entry_date,
-                COALESCE(entry_by,'') AS entry_by
+                COALESCE(entry_by,'') AS entry_by,
+                COALESCE(file_upload_flag, 'A') AS file_upload_flag
             FROM judl.data_share_receiver_details
             WHERE diary_no = ?
               AND diary_yr = ?
@@ -53,6 +54,7 @@ public class UploadHistoryDAOImpl implements UploadHistoryDAO {
                     }
 
                     obj.setEntryBy(rs.getString("entry_by"));
+                    obj.setFileUploadFlag(rs.getString("file_upload_flag"));
                     return obj;
                 },
                 diaryNo,

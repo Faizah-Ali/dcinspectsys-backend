@@ -507,6 +507,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             FROM judl.data_share_receiver_details
             WHERE diary_no = ?
               AND diary_yr = ?
+              AND file_upload_flag = 'A'
             """;
 
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, diaryNo, diaryYr);
@@ -517,9 +518,17 @@ public class ApplicationDAOImpl implements ApplicationDAO {
     public boolean hasOnlineInspectionMessage(int diaryNo, int diaryYr) {
         String sql = """
             SELECT COUNT(1)
-            FROM judl.inspection_user_online_message
-            WHERE diary_no = ?
-              AND diary_yr = ?
+            FROM judl.inspection_user_online_message m
+            WHERE m.diary_no = ?
+              AND m.diary_yr = ?
+              AND EXISTS (
+                  SELECT 1
+                  FROM judl.data_share_receiver_details d
+                  WHERE d.diary_no = m.diary_no
+                    AND d.diary_yr = m.diary_yr
+                    AND d.file_upload_flag = 'A'
+                    AND m.message LIKE '%a=' || d.uniqueid || '%'
+              )
             """;
 
         Integer count = jdbcTemplate.queryForObject(sql, Integer.class, diaryNo, diaryYr);

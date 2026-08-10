@@ -5,6 +5,7 @@ import com.dhc.inspection_system.dao.ApplicationDAO;
 import com.dhc.inspection_system.dao.LoginDAO;
 import com.dhc.inspection_system.dao.UploadDAO;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
+import com.dhc.inspection_system.dto.DeleteInspectionFileRequest;
 import com.dhc.inspection_system.dto.LoginUserDTO;
 import com.dhc.inspection_system.dto.UploadApplicantDetails;
 import com.dhc.inspection_system.service.InspectionAuditService;
@@ -207,6 +208,59 @@ public class UploadServiceImpl implements UploadService {
             deleteSavedFiles(savedFiles);
             throw e;
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int deleteInspectionFile(String authorization, DeleteInspectionFileRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("request is required");
+        }
+
+        if (request.getUniqueId() == null || request.getUniqueId().isBlank()) {
+            throw new IllegalArgumentException("uniqueId is required");
+        }
+
+        String loggedInUsername = extractUsernameFromAuthorization(authorization);
+        if (loggedInUsername == null || loggedInUsername.isBlank()) {
+            throw new IllegalArgumentException("Authorization is required");
+        }
+
+        LoginUserDTO loggedInUser = loginDAO.getUserByUsername(loggedInUsername);
+        String loggedInRole = loggedInUser != null ? loggedInUser.getRole() : null;
+
+        if (!"ONLINEINSPECTION".equals(loggedInRole)) {
+            throw new AccessDeniedException(
+                    "Only Inspection Officer can delete inspection files."
+            );
+        }
+
+        ApplicationDetailsResponse applicationDetails =
+                applicationDAO.getApplicationDetails(request.getDiaryNo(), request.getDiaryYr());
+
+        String currentStatus = applicationDetails != null
+                ? applicationDetails.getStatus()
+                : null;
+        if (!"P".equals(currentStatus)) {
+            throw new AccessDeniedException(
+                    "Application cannot accept file deletion in its current status."
+            );
+        }
+
+        String assigned = applicationDetails != null
+                ? applicationDetails.getAssigned()
+                : null;
+        if (assigned == null || !assigned.equals(loggedInUsername)) {
+            throw new AccessDeniedException(
+                    "You are not authorized to process this application."
+            );
+        }
+
+        return uploadDAO.markFileDeleted(
+                request.getUniqueId().trim(),
+                request.getDiaryNo(),
+                request.getDiaryYr()
+        );
     }
 
     private void registerFileCleanupOnRollback(List<Path> savedFiles) {

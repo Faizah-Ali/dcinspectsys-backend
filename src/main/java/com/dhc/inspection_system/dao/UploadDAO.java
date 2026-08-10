@@ -32,4 +32,6 @@ public interface UploadDAO {
             String sms
     );
 
+    int markFileDeleted(String uniqueId, int diaryNo, int diaryYr);
+
 }

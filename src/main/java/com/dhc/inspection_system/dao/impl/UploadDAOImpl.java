@@ -86,8 +86,8 @@ public class UploadDAOImpl implements UploadDAO {
     ) {
         String sql = """
             INSERT INTO judl.data_share_receiver_details
-            (NAME, MOBILE_NO, EMAIL_ID, ENTRY_BY, FILE_NAME, LOGIN_ID, PASSWORD, DIARY_NO, DIARY_YR, UNIQUEID)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (NAME, MOBILE_NO, EMAIL_ID, ENTRY_BY, FILE_NAME, LOGIN_ID, PASSWORD, DIARY_NO, DIARY_YR, UNIQUEID, FILE_UPLOAD_FLAG)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'A')
             """;
 
         try {
@@ -134,6 +134,20 @@ public class UploadDAOImpl implements UploadDAO {
                 mobile,
                 sms
         );
+    }
+
+    @Override
+    public int markFileDeleted(String uniqueId, int diaryNo, int diaryYr) {
+        String sql = """
+            UPDATE judl.data_share_receiver_details
+            SET file_upload_flag = 'D'
+            WHERE uniqueid = ?
+              AND diary_no = ?
+              AND diary_yr = ?
+              AND file_upload_flag = 'A'
+            """;
+
+        return jdbcTemplate.update(sql, uniqueId, diaryNo, diaryYr);
     }
 
 }

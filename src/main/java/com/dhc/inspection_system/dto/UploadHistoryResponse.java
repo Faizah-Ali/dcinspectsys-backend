@@ -12,6 +12,7 @@ public class UploadHistoryResponse {
     private String mobileNo;
     private LocalDateTime entryDate;
     private String entryBy;
+    private String fileUploadFlag;
 
     public String getUniqueId() {
         return uniqueId;
@@ -75,5 +76,13 @@ public class UploadHistoryResponse {
 
     public void setEntryBy(String entryBy) {
         this.entryBy = entryBy;
+    }
+
+    public String getFileUploadFlag() {
+        return fileUploadFlag;
+    }
+
+    public void setFileUploadFlag(String fileUploadFlag) {
+        this.fileUploadFlag = fileUploadFlag;
     }
 }
