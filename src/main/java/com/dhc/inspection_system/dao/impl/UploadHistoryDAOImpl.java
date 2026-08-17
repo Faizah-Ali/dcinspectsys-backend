@@ -22,19 +22,31 @@ public class UploadHistoryDAOImpl implements UploadHistoryDAO {
     public List<UploadHistoryResponse> getUploadHistory(int diaryNo, int diaryYr) {
         String sql = """
             SELECT
-                uniqueid,
-                email_id,
-                file_name,
-                COALESCE(diary_no,0) AS diary_no,
-                COALESCE(diary_yr,0) AS diary_yr,
-                mobile_no,
-                entry_date,
-                COALESCE(entry_by,'') AS entry_by,
-                COALESCE(file_upload_flag, 'A') AS file_upload_flag
-            FROM judl.data_share_receiver_details
-            WHERE diary_no = ?
-              AND diary_yr = ?
-            ORDER BY entry_date DESC
+                d.uniqueid,
+                d.email_id,
+                d.file_name,
+                COALESCE(d.diary_no,0) AS diary_no,
+                COALESCE(d.diary_yr,0) AS diary_yr,
+                d.mobile_no,
+                d.entry_date,
+                COALESCE(d.entry_by,'') AS entry_by,
+                COALESCE(d.file_upload_flag, 'A') AS file_upload_flag,
+                CASE
+                    WHEN COALESCE(d.file_upload_flag, 'A') = 'A'
+                     AND (
+                         i.reject_complete_date IS NULL
+                         OR d.entry_date > i.reject_complete_date
+                     )
+                    THEN TRUE
+                    ELSE FALSE
+                END AS current_cycle
+            FROM judl.data_share_receiver_details d
+            LEFT JOIN judl.inspection_user_online i
+              ON i.diary_no = d.diary_no
+             AND i.diary_yr = d.diary_yr
+            WHERE d.diary_no = ?
+              AND d.diary_yr = ?
+            ORDER BY d.entry_date DESC
             """;
 
         return jdbcTemplate.query(
@@ -55,6 +67,7 @@ public class UploadHistoryDAOImpl implements UploadHistoryDAO {
 
                     obj.setEntryBy(rs.getString("entry_by"));
                     obj.setFileUploadFlag(rs.getString("file_upload_flag"));
+                    obj.setCurrentCycle(rs.getBoolean("current_cycle"));
                     return obj;
                 },
                 diaryNo,

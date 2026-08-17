@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.List;
 
@@ -17,7 +18,11 @@ public class EmailQueueDAOImpl implements EmailQueueDAO {
     private JdbcTemplate jdbcTemplate;
 
     @Override
-    public List<OnlineInspectionMessageRow> getOnlineInspectionMessages(int diaryNo, int diaryYr) {
+    public List<OnlineInspectionMessageRow> getOnlineInspectionMessages(
+            int diaryNo,
+            int diaryYr,
+            Timestamp cycleCutoff
+    ) {
         String sql = """
             SELECT m.message, m.email
             FROM judl.inspection_user_online_message m
@@ -29,6 +34,7 @@ public class EmailQueueDAOImpl implements EmailQueueDAO {
                   WHERE d.diary_no = m.diary_no
                     AND d.diary_yr = m.diary_yr
                     AND d.file_upload_flag = 'A'
+                    AND d.entry_date > COALESCE(?, '-infinity'::timestamp)
                     AND m.message LIKE '%a=' || d.uniqueid || '%'
               )
             """;
@@ -42,7 +48,8 @@ public class EmailQueueDAOImpl implements EmailQueueDAO {
                     return row;
                 },
                 diaryNo,
-                diaryYr
+                diaryYr,
+                cycleCutoff
         );
     }
 

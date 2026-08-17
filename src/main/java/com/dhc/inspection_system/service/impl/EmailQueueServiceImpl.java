@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.List;
 
@@ -24,9 +25,13 @@ public class EmailQueueServiceImpl implements EmailQueueService {
     // Isolated TX so queue failure cannot mark Complete rollback-only.
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-    public void queueEmailsForCompletedApplication(int diaryNo, int diaryYr) {
+    public void queueEmailsForCompletedApplication(
+            int diaryNo,
+            int diaryYr,
+            Timestamp cycleCutoff
+    ) {
         List<OnlineInspectionMessageRow> messages =
-                emailQueueDAO.getOnlineInspectionMessages(diaryNo, diaryYr);
+                emailQueueDAO.getOnlineInspectionMessages(diaryNo, diaryYr, cycleCutoff);
 
         if (messages == null || messages.isEmpty()) {
             throw new RuntimeException(

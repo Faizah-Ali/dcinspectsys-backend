@@ -32,6 +32,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 @Service
@@ -806,9 +807,17 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
 
         try {
-            if (!applicationDAO.hasDataShareReceiverDetails(
+            // Complete overwrites reject_complete_date, so preserve the assignment-cycle
+            // cutoff for validation and the REQUIRES_NEW notification transactions.
+            Timestamp cycleCutoff = applicationDAO.getCycleCutoff(
                     request.getDiaryNo(),
                     request.getDiaryYr()
+            );
+
+            if (!applicationDAO.hasDataShareReceiverDetails(
+                    request.getDiaryNo(),
+                    request.getDiaryYr(),
+                    cycleCutoff
             )) {
                 throw new IllegalArgumentException(
                         "Please upload the file for e-Inspection. Approval of inspection failed."
@@ -817,7 +826,8 @@ public class ApplicationServiceImpl implements ApplicationService {
 
             if (!applicationDAO.hasOnlineInspectionMessage(
                     request.getDiaryNo(),
-                    request.getDiaryYr()
+                    request.getDiaryYr(),
+                    cycleCutoff
             )) {
                 throw new IllegalArgumentException(
                         "Please upload the file for e-Inspection. Approval of inspection failed."
@@ -873,7 +883,8 @@ public class ApplicationServiceImpl implements ApplicationService {
                 try {
                     emailQueueService.queueEmailsForCompletedApplication(
                             request.getDiaryNo(),
-                            request.getDiaryYr()
+                            request.getDiaryYr(),
+                            cycleCutoff
                     );
                 } catch (Exception emailEx) {
                     log.error(
@@ -887,7 +898,8 @@ public class ApplicationServiceImpl implements ApplicationService {
                 try {
                     smsQueueService.queueSmsForCompletedApplication(
                             request.getDiaryNo(),
-                            request.getDiaryYr()
+                            request.getDiaryYr(),
+                            cycleCutoff
                     );
                 } catch (Exception smsEx) {
                     log.error(

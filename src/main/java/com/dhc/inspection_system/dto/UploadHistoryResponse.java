@@ -13,6 +13,7 @@ public class UploadHistoryResponse {
     private LocalDateTime entryDate;
     private String entryBy;
     private String fileUploadFlag;
+    private boolean currentCycle;
 
     public String getUniqueId() {
         return uniqueId;
@@ -84,5 +85,13 @@ public class UploadHistoryResponse {
 
     public void setFileUploadFlag(String fileUploadFlag) {
         this.fileUploadFlag = fileUploadFlag;
+    }
+
+    public boolean isCurrentCycle() {
+        return currentCycle;
+    }
+
+    public void setCurrentCycle(boolean currentCycle) {
+        this.currentCycle = currentCycle;
     }
 }

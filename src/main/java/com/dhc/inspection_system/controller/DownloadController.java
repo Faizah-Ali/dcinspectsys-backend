@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 @RestController
 @RequestMapping("/api")
@@ -27,8 +28,25 @@ public class DownloadController {
     public ResponseEntity<?> downloadInspectionFile(
             @RequestParam("uniqueId") String uniqueId
     ) {
+        return downloadPdf(uniqueId, downloadService::getDownloadResource);
+    }
+
+    /**
+     * Staff Upload History preview/download — no 6-day expiry; excludes soft-deleted files.
+     */
+    @GetMapping("/download-history-file")
+    public ResponseEntity<?> downloadHistoryFile(
+            @RequestParam("uniqueId") String uniqueId
+    ) {
+        return downloadPdf(uniqueId, downloadService::getHistoryDownloadResource);
+    }
+
+    private ResponseEntity<?> downloadPdf(
+            String uniqueId,
+            Function<String, Resource> resourceLoader
+    ) {
         try {
-            Resource resource = downloadService.getDownloadResource(uniqueId);
+            Resource resource = resourceLoader.apply(uniqueId);
             String fileName = resource.getFilename();
 
             return ResponseEntity.ok()

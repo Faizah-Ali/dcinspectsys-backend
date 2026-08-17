@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 @Repository
@@ -16,7 +17,11 @@ public class SmsQueueDAOImpl implements SmsQueueDAO {
     private JdbcTemplate jdbcTemplate;
 
     @Override
-    public List<OnlineInspectionSmsRow> getOnlineInspectionSmsMessages(int diaryNo, int diaryYr) {
+    public List<OnlineInspectionSmsRow> getOnlineInspectionSmsMessages(
+            int diaryNo,
+            int diaryYr,
+            Timestamp cycleCutoff
+    ) {
         String sql = """
             SELECT m.sms, m.mobile
             FROM judl.inspection_user_online_message m
@@ -28,6 +33,7 @@ public class SmsQueueDAOImpl implements SmsQueueDAO {
                   WHERE d.diary_no = m.diary_no
                     AND d.diary_yr = m.diary_yr
                     AND d.file_upload_flag = 'A'
+                    AND d.entry_date > COALESCE(?, '-infinity'::timestamp)
                     AND m.message LIKE '%a=' || d.uniqueid || '%'
               )
             """;
@@ -41,7 +47,8 @@ public class SmsQueueDAOImpl implements SmsQueueDAO {
                     return row;
                 },
                 diaryNo,
-                diaryYr
+                diaryYr,
+                cycleCutoff
         );
     }
 

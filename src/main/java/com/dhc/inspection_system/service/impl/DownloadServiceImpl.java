@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.function.Function;
 
 @Service
 public class DownloadServiceImpl implements DownloadService {
@@ -25,11 +26,23 @@ public class DownloadServiceImpl implements DownloadService {
 
     @Override
     public Resource getDownloadResource(String uniqueId) {
+        return resolveResource(uniqueId, downloadDAO::findFileNameByUniqueId);
+    }
+
+    @Override
+    public Resource getHistoryDownloadResource(String uniqueId) {
+        return resolveResource(uniqueId, downloadDAO::findHistoryFileNameByUniqueId);
+    }
+
+    private Resource resolveResource(
+            String uniqueId,
+            Function<String, Optional<String>> fileNameLookup
+    ) {
         if (uniqueId == null || uniqueId.isBlank()) {
             throw new IllegalArgumentException("File not found.");
         }
 
-        Optional<String> fileNameOpt = downloadDAO.findFileNameByUniqueId(uniqueId.trim());
+        Optional<String> fileNameOpt = fileNameLookup.apply(uniqueId.trim());
         if (fileNameOpt.isEmpty()) {
             throw new IllegalArgumentException("File not found.");
         }

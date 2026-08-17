@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 @Service
@@ -24,9 +25,13 @@ public class SmsQueueServiceImpl implements SmsQueueService {
     // Isolated TX so queue failure cannot mark Complete rollback-only.
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-    public void queueSmsForCompletedApplication(int diaryNo, int diaryYr) {
+    public void queueSmsForCompletedApplication(
+            int diaryNo,
+            int diaryYr,
+            Timestamp cycleCutoff
+    ) {
         List<OnlineInspectionSmsRow> messages =
-                smsQueueDAO.getOnlineInspectionSmsMessages(diaryNo, diaryYr);
+                smsQueueDAO.getOnlineInspectionSmsMessages(diaryNo, diaryYr, cycleCutoff);
 
         if (messages == null || messages.isEmpty()) {
             throw new RuntimeException(

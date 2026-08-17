@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -317,7 +318,8 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                 status = 'N',
                 assigned = ?,
                 assignedname = ?,
-                remarks = ?
+                remarks = ?,
+                reject_complete_date = CURRENT_TIMESTAMP
             WHERE diary_no = ?
               AND diary_yr = ?
             """;
@@ -501,21 +503,55 @@ public class ApplicationDAOImpl implements ApplicationDAO {
     }
 
     @Override
-    public boolean hasDataShareReceiverDetails(int diaryNo, int diaryYr) {
+    public Timestamp getCycleCutoff(int diaryNo, int diaryYr) {
         String sql = """
-            SELECT COUNT(1)
-            FROM judl.data_share_receiver_details
+            SELECT reject_complete_date
+            FROM judl.inspection_user_online
             WHERE diary_no = ?
               AND diary_yr = ?
-              AND file_upload_flag = 'A'
             """;
 
-        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, diaryNo, diaryYr);
+        List<Timestamp> results = jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> rs.getTimestamp("reject_complete_date"),
+                diaryNo,
+                diaryYr
+        );
+
+        return results.isEmpty() ? null : results.get(0);
+    }
+
+    @Override
+    public boolean hasDataShareReceiverDetails(
+            int diaryNo,
+            int diaryYr,
+            Timestamp cycleCutoff
+    ) {
+        String sql = """
+            SELECT COUNT(1)
+            FROM judl.data_share_receiver_details d
+            WHERE d.diary_no = ?
+              AND d.diary_yr = ?
+              AND d.file_upload_flag = 'A'
+              AND d.entry_date > COALESCE(?, '-infinity'::timestamp)
+            """;
+
+        Integer count = jdbcTemplate.queryForObject(
+                sql,
+                Integer.class,
+                diaryNo,
+                diaryYr,
+                cycleCutoff
+        );
         return count != null && count > 0;
     }
 
     @Override
-    public boolean hasOnlineInspectionMessage(int diaryNo, int diaryYr) {
+    public boolean hasOnlineInspectionMessage(
+            int diaryNo,
+            int diaryYr,
+            Timestamp cycleCutoff
+    ) {
         String sql = """
             SELECT COUNT(1)
             FROM judl.inspection_user_online_message m
@@ -527,11 +563,18 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                   WHERE d.diary_no = m.diary_no
                     AND d.diary_yr = m.diary_yr
                     AND d.file_upload_flag = 'A'
+                    AND d.entry_date > COALESCE(?, '-infinity'::timestamp)
                     AND m.message LIKE '%a=' || d.uniqueid || '%'
               )
             """;
 
-        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, diaryNo, diaryYr);
+        Integer count = jdbcTemplate.queryForObject(
+                sql,
+                Integer.class,
+                diaryNo,
+                diaryYr,
+                cycleCutoff
+        );
         return count != null && count > 0;
     }
 

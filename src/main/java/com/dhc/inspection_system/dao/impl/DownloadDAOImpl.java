@@ -37,4 +37,26 @@ public class DownloadDAOImpl implements DownloadDAO {
         return Optional.of(results.get(0));
     }
 
+    @Override
+    public Optional<String> findHistoryFileNameByUniqueId(String uniqueId) {
+        String sql = """
+            SELECT file_name
+            FROM judl.data_share_receiver_details
+            WHERE uniqueid = ?
+              AND COALESCE(file_upload_flag, 'A') <> 'D'
+            """;
+
+        List<String> results = jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> rs.getString("file_name"),
+                uniqueId
+        );
+
+        if (results.isEmpty() || results.get(0) == null || results.get(0).isBlank()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(results.get(0));
+    }
+
 }

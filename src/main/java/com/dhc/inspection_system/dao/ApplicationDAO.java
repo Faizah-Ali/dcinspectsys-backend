@@ -9,6 +9,7 @@ import com.dhc.inspection_system.dto.ForwardApplicationRequest;
 import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.dto.SendForApprovalRequest;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 public interface ApplicationDAO {
@@ -51,9 +52,11 @@ public interface ApplicationDAO {
      */
     boolean updateCourtFee(int diaryNo, int diaryYr, CourtFeeQueryResult result);
 
-    boolean hasDataShareReceiverDetails(int diaryNo, int diaryYr);
+    Timestamp getCycleCutoff(int diaryNo, int diaryYr);
 
-    boolean hasOnlineInspectionMessage(int diaryNo, int diaryYr);
+    boolean hasDataShareReceiverDetails(int diaryNo, int diaryYr, Timestamp cycleCutoff);
+
+    boolean hasOnlineInspectionMessage(int diaryNo, int diaryYr, Timestamp cycleCutoff);
 
     ApplicationOwnershipInfo getStatusAndApplappby(int diaryNo, int diaryYr);
 }
