@@ -2,6 +2,7 @@ package com.dhc.inspection_system.service.impl;
 
 import com.dhc.inspection_system.auth.JwtUtil;
 import com.dhc.inspection_system.dao.ApplicationDAO;
+import com.dhc.inspection_system.dao.ApplicationOrderMode;
 import com.dhc.inspection_system.dao.LoginDAO;
 import com.dhc.inspection_system.dao.UploadHistoryDAO;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
@@ -136,6 +137,12 @@ public class ApplicationServiceImpl implements ApplicationService {
             unassignedOnly = false;
         }
 
+        // Common freshness ordering for all staff roles — resolved to a safe
+        // fixed SQL constant inside the DAO:
+        //   INSPECTIONADMIN    → LATEST_ACTION
+        //   ONLINEINSPECTION   → LATEST_ACTION
+        //   INSPECTIONAPPROVER → LATEST_ACTION
+        final ApplicationOrderMode orderMode = ApplicationOrderMode.LATEST_ACTION;
         PaginatedResponse<ApplicationResponse> response = applicationDAO.getApplications(
                 owner,
                 assigned,
@@ -146,7 +153,8 @@ public class ApplicationServiceImpl implements ApplicationService {
                 applicationStatus,
                 unassignedOnly,
                 page,
-                size
+                size,
+                orderMode
         );
 
         // Legacy getAdminData CERTRQ refresh — current page only; never fails inbox.

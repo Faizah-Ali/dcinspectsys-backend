@@ -7,7 +7,7 @@ public interface DownloadService {
     Resource getDownloadResource(String uniqueId);
 
     /**
-     * Staff Upload History download/preview — no 6-day expiry.
+     * Staff Upload History download/preview — no 6-day expiry; includes soft-deleted files.
      */
     Resource getHistoryDownloadResource(String uniqueId);
 

@@ -32,7 +32,7 @@ public class DownloadController {
     }
 
     /**
-     * Staff Upload History preview/download — no 6-day expiry; excludes soft-deleted files.
+     * Staff Upload History preview/download — no 6-day expiry; includes soft-deleted files.
      */
     @GetMapping("/download-history-file")
     public ResponseEntity<?> downloadHistoryFile(

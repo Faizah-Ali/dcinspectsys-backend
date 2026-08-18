@@ -1,6 +1,7 @@
 package com.dhc.inspection_system.dao.impl;
 
 import com.dhc.inspection_system.dao.ApplicationDAO;
+import com.dhc.inspection_system.dao.ApplicationOrderMode;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
 import com.dhc.inspection_system.dto.ApplicationOwnershipInfo;
 import com.dhc.inspection_system.dto.ApplicationResponse;
@@ -99,7 +100,8 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             String applicationStatus,
             boolean unassignedOnly,
             int page,
-            int size
+            int size,
+            ApplicationOrderMode orderMode
     ) {
 
         if (page < 1) {
@@ -231,10 +233,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             FROM judl.INSPECTION_USER_ONLINE
             """
                 + whereClause
-                + """
-            ORDER BY diary_yr DESC, diary_no DESC
-            LIMIT ? OFFSET ?
-            """;
+                + "\n            ORDER BY " + resolveOrderBy(orderMode) + "\n            LIMIT ? OFFSET ?\n            ";
 
         String countQuery = """
             SELECT COUNT(*)
@@ -318,7 +317,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                 status = 'N',
                 assigned = ?,
                 assignedname = ?,
-                remarks = ?,
+                remarks = COALESCE(NULLIF(TRIM(?), ''), remarks),
                 reject_complete_date = CURRENT_TIMESTAMP
             WHERE diary_no = ?
               AND diary_yr = ?
@@ -340,7 +339,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             UPDATE judl.inspection_user_online
             SET
                 status='P',
-                remarks=?
+                remarks = COALESCE(NULLIF(TRIM(?), ''), remarks)
             WHERE diary_no=?
             AND diary_yr=?
             """;
@@ -354,7 +353,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             UPDATE judl.inspection_user_online
             SET
                 status='K',
-                remarks=?
+                remarks = COALESCE(NULLIF(TRIM(?), ''), remarks)
             WHERE diary_no=?
             AND diary_yr=?
             """;
@@ -368,7 +367,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             UPDATE judl.inspection_user_online
             SET
                 status='C',
-                remarks=?,
+                remarks = COALESCE(NULLIF(TRIM(?), ''), remarks),
                 reject_complete_date=CURRENT_TIMESTAMP
             WHERE diary_no=?
             AND diary_yr=?
@@ -391,7 +390,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
                 applappbyname=?,
                 assigned=?,
                 assignedname=?,
-                remarks=?
+                remarks = COALESCE(NULLIF(TRIM(?), ''), remarks)
             WHERE diary_no=?
             AND diary_yr=?
             """;
@@ -434,7 +433,7 @@ public class ApplicationDAOImpl implements ApplicationDAO {
             UPDATE judl.inspection_user_online
             SET
                 status='Y',
-                remarks=?,
+                remarks = COALESCE(NULLIF(TRIM(?), ''), remarks),
                 reject_complete_date=CURRENT_TIMESTAMP,
                 is_courtfee_locked='Y'
             WHERE diary_no=?
@@ -600,5 +599,26 @@ public class ApplicationDAOImpl implements ApplicationDAO {
         );
 
         return results.isEmpty() ? null : results.get(0);
+    }
+
+    /**
+     * Maps a named ordering mode to a safe, fixed SQL ORDER BY fragment.
+     * No user-supplied SQL is ever concatenated into the query.
+     */
+    private String resolveOrderBy(ApplicationOrderMode mode) {
+        ApplicationOrderMode resolved =
+                mode == null ? ApplicationOrderMode.LATEST_ACTION : mode;
+        return switch (resolved) {
+            case LATEST_ACTION -> """
+                    (
+                        SELECT MAX(e.entry_date)
+                        FROM judl.efiling_log e
+                        WHERE e.diaryno = diary_no
+                          AND e.diary_yr = diary_yr
+                          AND e.source = 'e-Inspection'
+                    ) DESC NULLS LAST,
+                    diary_yr DESC,
+                    diary_no DESC""";
+        };
     }
 }

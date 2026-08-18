@@ -43,7 +43,6 @@ public class DownloadDAOImpl implements DownloadDAO {
             SELECT file_name
             FROM judl.data_share_receiver_details
             WHERE uniqueid = ?
-              AND COALESCE(file_upload_flag, 'A') <> 'D'
             """;
 
         List<String> results = jdbcTemplate.query(

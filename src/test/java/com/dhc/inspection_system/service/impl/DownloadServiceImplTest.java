@@ -68,7 +68,19 @@ class DownloadServiceImplTest {
     }
 
     @Test
-    void historyDownloadReturnsNotFoundForDeletedOrUnknownUniqueId() {
+    void historyDownloadSucceedsForSoftDeletedFileWhenPhysicalPdfExists() throws Exception {
+        Files.writeString(tempDir.resolve(FILE_NAME), "%PDF-1.4");
+        when(downloadDAO.findHistoryFileNameByUniqueId(UNIQUE_ID))
+                .thenReturn(Optional.of(FILE_NAME));
+
+        Resource resource = downloadService.getHistoryDownloadResource(UNIQUE_ID);
+
+        assertEquals(FILE_NAME, resource.getFilename());
+        assertTrue(resource.exists());
+    }
+
+    @Test
+    void historyDownloadReturnsNotFoundForUnknownUniqueId() {
         when(downloadDAO.findHistoryFileNameByUniqueId(UNIQUE_ID))
                 .thenReturn(Optional.empty());
 

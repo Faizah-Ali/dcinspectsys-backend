@@ -26,7 +26,8 @@ public interface ApplicationDAO {
             String applicationStatus,
             boolean unassignedOnly,
             int page,
-            int size
+            int size,
+            ApplicationOrderMode orderMode
     );
 
     int assignApplication(AssignApplicationRequest request);

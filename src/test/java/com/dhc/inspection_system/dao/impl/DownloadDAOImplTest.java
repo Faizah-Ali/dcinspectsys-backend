@@ -58,7 +58,7 @@ class DownloadDAOImplTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    void historyDownloadHasNoSixDayRestrictionAndExcludesDeleted() {
+    void historyDownloadHasNoSixDayRestrictionAndIncludesDeleted() {
         when(jdbcTemplate.query(
                 anyString(),
                 any(RowMapper.class),
@@ -78,13 +78,13 @@ class DownloadDAOImplTest {
 
         String sql = sqlCaptor.getValue();
         assertFalse(sql.contains("EXTRACT(DAY"));
-        assertTrue(sql.contains("COALESCE(file_upload_flag, 'A') <> 'D'"));
+        assertFalse(sql.contains("file_upload_flag"));
         assertTrue(sql.contains("uniqueid = ?"));
     }
 
     @SuppressWarnings("unchecked")
     @Test
-    void historyDownloadReturnsEmptyForUnknownOrDeletedUniqueId() {
+    void historyDownloadReturnsEmptyForUnknownUniqueId() {
         when(jdbcTemplate.query(
                 anyString(),
                 any(RowMapper.class),
