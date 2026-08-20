@@ -2,10 +2,14 @@ package com.dhc.inspection_system.service.impl;
 
 import com.dhc.inspection_system.auth.JwtUtil;
 import com.dhc.inspection_system.dao.ApplicationDAO;
+import com.dhc.inspection_system.dao.ApplicationOrderMode;
 import com.dhc.inspection_system.dao.LoginDAO;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
+import com.dhc.inspection_system.dto.ApplicationResponse;
 import com.dhc.inspection_system.dto.CompleteApplicationRequest;
+import com.dhc.inspection_system.dto.CourtFeeQueryResult;
 import com.dhc.inspection_system.dto.LoginUserDTO;
+import com.dhc.inspection_system.dto.PaginatedResponse;
 import com.dhc.inspection_system.service.CourtFeeService;
 import com.dhc.inspection_system.service.EmailQueueService;
 import com.dhc.inspection_system.service.InspectionAuditService;
@@ -19,11 +23,17 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.sql.Timestamp;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -80,13 +90,144 @@ class ApplicationServiceImplTest {
 
         cycleCutoff = Timestamp.valueOf("2026-08-17 12:00:00");
 
-        when(jwtUtil.validateToken("token")).thenReturn(true);
-        when(jwtUtil.extractUsername("token")).thenReturn(OFFICER);
-        when(loginDAO.getUserByUsername(OFFICER)).thenReturn(user);
-        when(applicationDAO.getApplicationDetails(DIARY_NO, DIARY_YR))
+        lenient().when(jwtUtil.validateToken("token")).thenReturn(true);
+        lenient().when(jwtUtil.extractUsername("token")).thenReturn(OFFICER);
+        lenient().when(loginDAO.getUserByUsername(OFFICER)).thenReturn(user);
+        lenient().when(applicationDAO.getApplicationDetails(DIARY_NO, DIARY_YR))
                 .thenReturn(application);
-        when(applicationDAO.getCycleCutoff(DIARY_NO, DIARY_YR))
+        lenient().when(applicationDAO.getCycleCutoff(DIARY_NO, DIARY_YR))
                 .thenReturn(cycleCutoff);
+    }
+
+    @Test
+    void adminInboxGetApplicationsDoesNotQueryCourtFee() {
+        LoginUserDTO admin = new LoginUserDTO();
+        admin.setRole("INSPECTIONADMIN");
+        admin.setGroup("A");
+
+        when(jwtUtil.extractUsername("token")).thenReturn("admin");
+        when(loginDAO.getUserByUsername("admin")).thenReturn(admin);
+
+        ApplicationResponse row = new ApplicationResponse();
+        row.setDiaryNo(DIARY_NO);
+        row.setDiaryYr(DIARY_YR);
+        row.setEcourtFeeId("DLCT0212D2652S977");
+        row.setCourtFeeAmount("");
+
+        PaginatedResponse<ApplicationResponse> daoResponse = new PaginatedResponse<>();
+        daoResponse.setContent(List.of(row));
+        when(applicationDAO.getApplications(
+                eq("A"),
+                isNull(),
+                isNull(),
+                eq(List.of("N")),
+                isNull(),
+                eq(""),
+                eq(""),
+                eq(true),
+                eq(1),
+                eq(10),
+                eq(ApplicationOrderMode.LATEST_ACTION)
+        )).thenReturn(daoResponse);
+
+        PaginatedResponse<ApplicationResponse> response =
+                applicationService.getApplications(
+                        "Bearer token",
+                        "A",
+                        null,
+                        null,
+                        "",
+                        "",
+                        1,
+                        10
+                );
+
+        assertEquals(1, response.getContent().size());
+        verify(courtFeeService, never()).queryCourtFee(anyString());
+        verify(applicationDAO, never()).updateCourtFee(anyInt(), anyInt(), any());
+    }
+
+    @Test
+    void getApplicationDetailsRefreshesEligibleCourtFee() {
+        application.setDiaryNo(DIARY_NO);
+        application.setDiaryYr(DIARY_YR);
+        application.setEcourtFeeId("DLCT0212D2652S977");
+        application.setCourtFeeAmount("");
+
+        when(courtFeeService.queryCourtFee("DLCT0212D2652S977"))
+                .thenReturn(CourtFeeQueryResult.success("5", false, "VALID COURT FEE"));
+
+        ApplicationDetailsResponse details =
+                applicationService.getApplicationDetails(DIARY_NO, DIARY_YR);
+
+        assertNotNull(details);
+        assertEquals("5", details.getCourtFeeAmount());
+        assertEquals("VALID COURT FEE", details.getEcourtMessage());
+        verify(courtFeeService).queryCourtFee("DLCT0212D2652S977");
+        verify(applicationDAO).updateCourtFee(
+                eq(DIARY_NO),
+                eq(DIARY_YR),
+                any(CourtFeeQueryResult.class)
+        );
+    }
+
+    @Test
+    void getApplicationDetailsReturnsWhenCourtFeeQueryErrors() {
+        application.setDiaryNo(DIARY_NO);
+        application.setDiaryYr(DIARY_YR);
+        application.setEcourtFeeId("DLCT0212D2652S977");
+        application.setCourtFeeAmount("");
+
+        when(courtFeeService.queryCourtFee("DLCT0212D2652S977"))
+                .thenReturn(CourtFeeQueryResult.error("NETWORK ISSUE"));
+
+        ApplicationDetailsResponse details =
+                applicationService.getApplicationDetails(DIARY_NO, DIARY_YR);
+
+        assertNotNull(details);
+        assertEquals("", details.getCourtFeeAmount());
+        assertEquals("Error in court fee:NETWORK ISSUE", details.getEcourtMessage());
+        verify(applicationDAO).updateCourtFee(
+                eq(DIARY_NO),
+                eq(DIARY_YR),
+                any(CourtFeeQueryResult.class)
+        );
+    }
+
+    @Test
+    void getApplicationDetailsReturnsWhenCourtFeeQueryIsSkipped() {
+        application.setDiaryNo(DIARY_NO);
+        application.setDiaryYr(DIARY_YR);
+        application.setEcourtFeeId("DLCT0212D2652S977");
+        application.setCourtFeeAmount("");
+
+        when(courtFeeService.queryCourtFee("DLCT0212D2652S977"))
+                .thenReturn(CourtFeeQueryResult.skip());
+
+        ApplicationDetailsResponse details =
+                applicationService.getApplicationDetails(DIARY_NO, DIARY_YR);
+
+        assertNotNull(details);
+        assertEquals("", details.getCourtFeeAmount());
+        verify(applicationDAO, never()).updateCourtFee(anyInt(), anyInt(), any());
+    }
+
+    @Test
+    void getApplicationDetailsStillReturnsWhenSoapThrows() {
+        application.setDiaryNo(DIARY_NO);
+        application.setDiaryYr(DIARY_YR);
+        application.setEcourtFeeId("DLCT0212D2652S977");
+        application.setCourtFeeAmount("");
+
+        when(courtFeeService.queryCourtFee("DLCT0212D2652S977"))
+                .thenThrow(new RuntimeException("SHCIL down"));
+
+        ApplicationDetailsResponse details =
+                applicationService.getApplicationDetails(DIARY_NO, DIARY_YR);
+
+        assertNotNull(details);
+        assertEquals("", details.getCourtFeeAmount());
+        verify(applicationDAO, never()).updateCourtFee(anyInt(), anyInt(), any());
     }
 
     @Test

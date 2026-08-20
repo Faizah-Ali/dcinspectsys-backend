@@ -71,7 +71,14 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Override
     public ApplicationDetailsResponse getApplicationDetails(int diaryNo, int diaryYr) {
-        return applicationDAO.getApplicationDetails(diaryNo, diaryYr);
+        ApplicationDetailsResponse details =
+                applicationDAO.getApplicationDetails(diaryNo, diaryYr);
+        if (details == null) {
+            return null;
+        }
+
+        refreshCourtFeeIfNeeded(details);
+        return details;
     }
 
     @Override
@@ -143,7 +150,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         //   ONLINEINSPECTION   → LATEST_ACTION
         //   INSPECTIONAPPROVER → LATEST_ACTION
         final ApplicationOrderMode orderMode = ApplicationOrderMode.LATEST_ACTION;
-        PaginatedResponse<ApplicationResponse> response = applicationDAO.getApplications(
+        return applicationDAO.getApplications(
                 owner,
                 assigned,
                 applappby,
@@ -156,62 +163,57 @@ public class ApplicationServiceImpl implements ApplicationService {
                 size,
                 orderMode
         );
-
-        // Legacy getAdminData CERTRQ refresh — current page only; never fails inbox.
-        if ("INSPECTIONADMIN".equals(loggedInRole) && inboxRequest) {
-            refreshAdminInboxCourtFees(response.getContent());
-        }
-
-        return response;
     }
 
-    private void refreshAdminInboxCourtFees(List<ApplicationResponse> applications) {
-        if (applications == null || applications.isEmpty()) {
+    /**
+     * Legacy getAdminData CERTRQ refresh — one application at a time.
+     * Best-effort: SHCIL failures must not fail Application Details.
+     */
+    private void refreshCourtFeeIfNeeded(ApplicationDetailsResponse details) {
+        if (details == null) {
             return;
         }
 
-        for (ApplicationResponse row : applications) {
-            if (row == null) {
-                continue;
+        try {
+            String ecourtFeeId = details.getEcourtFeeId();
+            if (ecourtFeeId == null || ecourtFeeId.isBlank()) {
+                return;
             }
 
-            try {
-                String ecourtFeeId = row.getEcourtFeeId();
-                if (ecourtFeeId == null || ecourtFeeId.isBlank()) {
-                    continue;
-                }
-
-                String courtFeeAmount = row.getCourtFeeAmount();
-                boolean needsRefresh = courtFeeAmount == null
-                        || courtFeeAmount.isBlank()
-                        || "0".equals(courtFeeAmount);
-                if (!needsRefresh) {
-                    continue;
-                }
-
-                CourtFeeQueryResult result = courtFeeService.queryCourtFee(ecourtFeeId);
-                if (result == null || result.isSkipped()) {
-                    continue;
-                }
-
-                applicationDAO.updateCourtFee(row.getDiaryNo(), row.getDiaryYr(), result);
-
-                if (result.isSuccess()) {
-                    row.setCourtFeeAmount(result.getAmount());
-                    row.setEcourtMessage("VALID COURT FEE");
-                } else {
-                    String message = result.getMessage() == null ? "" : result.getMessage();
-                    row.setCourtFeeAmount("");
-                    row.setEcourtMessage("Error in court fee:" + message);
-                }
-            } catch (Exception ex) {
-                log.error(
-                        "Admin Inbox court-fee refresh failed for diaryNo={}, diaryYr={}",
-                        row.getDiaryNo(),
-                        row.getDiaryYr(),
-                        ex
-                );
+            String courtFeeAmount = details.getCourtFeeAmount();
+            boolean needsRefresh = courtFeeAmount == null
+                    || courtFeeAmount.isBlank()
+                    || "0".equals(courtFeeAmount);
+            if (!needsRefresh) {
+                return;
             }
+
+            CourtFeeQueryResult result = courtFeeService.queryCourtFee(ecourtFeeId);
+            if (result == null || result.isSkipped()) {
+                return;
+            }
+
+            applicationDAO.updateCourtFee(
+                    details.getDiaryNo(),
+                    details.getDiaryYr(),
+                    result
+            );
+
+            if (result.isSuccess()) {
+                details.setCourtFeeAmount(result.getAmount());
+                details.setEcourtMessage("VALID COURT FEE");
+            } else {
+                String message = result.getMessage() == null ? "" : result.getMessage();
+                details.setCourtFeeAmount("");
+                details.setEcourtMessage("Error in court fee:" + message);
+            }
+        } catch (Exception ex) {
+            log.error(
+                    "Court-fee refresh failed for diaryNo={}, diaryYr={}",
+                    details.getDiaryNo(),
+                    details.getDiaryYr(),
+                    ex
+            );
         }
     }
 
