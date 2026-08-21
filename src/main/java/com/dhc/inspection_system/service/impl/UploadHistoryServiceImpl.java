@@ -2,10 +2,13 @@ package com.dhc.inspection_system.service.impl;
 
 import com.dhc.inspection_system.dao.UploadHistoryDAO;
 import com.dhc.inspection_system.dto.UploadHistoryWrapperResponse;
+import com.dhc.inspection_system.dto.UserCommentResponse;
 import com.dhc.inspection_system.service.UploadHistoryService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class UploadHistoryServiceImpl implements UploadHistoryService {
@@ -20,6 +23,11 @@ public class UploadHistoryServiceImpl implements UploadHistoryService {
         response.setInspectionLogs(uploadHistoryDAO.getInspectionLogs(diaryNo, diaryYr));
         response.setUserComments(uploadHistoryDAO.getUserComments(diaryNo, diaryYr));
         return response;
+    }
+
+    @Override
+    public List<UserCommentResponse> getInspectionComments(int diaryNo, int diaryYr) {
+        return uploadHistoryDAO.getUserComments(diaryNo, diaryYr);
     }
 
 }

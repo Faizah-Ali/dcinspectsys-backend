@@ -475,12 +475,16 @@ public class ApplicationServiceImpl implements ApplicationService {
             }
 
             if (updatedRows > 0) {
-                saveOfficeCommentIfPresent(
-                        request.getDiaryNo(),
-                        request.getDiaryYr(),
-                        request.getRemarks(),
-                        loggedInUsername
-                );
+                // Legacy: only approver reject writes DROPBOX_COMMENT / Note Sheet.
+                // ONLINEINSPECTION reject updates REMARKS + EFILING_LOG only.
+                if ("INSPECTIONAPPROVER".equals(loggedInRole)) {
+                    saveOfficeCommentIfPresent(
+                            request.getDiaryNo(),
+                            request.getDiaryYr(),
+                            request.getRemarks(),
+                            loggedInUsername
+                    );
+                }
 
                 String rejectorName;
                 if ("ONLINEINSPECTION".equals(loggedInRole)) {

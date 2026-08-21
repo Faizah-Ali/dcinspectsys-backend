@@ -4,16 +4,24 @@ import com.dhc.inspection_system.auth.JwtUtil;
 import com.dhc.inspection_system.dao.ApplicationDAO;
 import com.dhc.inspection_system.dao.ApplicationOrderMode;
 import com.dhc.inspection_system.dao.LoginDAO;
+import com.dhc.inspection_system.dao.UploadHistoryDAO;
 import com.dhc.inspection_system.dto.ApplicationDetailsResponse;
+import com.dhc.inspection_system.dto.ApplicationOwnershipInfo;
 import com.dhc.inspection_system.dto.ApplicationResponse;
+import com.dhc.inspection_system.dto.ApproveRejectRequest;
+import com.dhc.inspection_system.dto.AssignApplicationRequest;
 import com.dhc.inspection_system.dto.CompleteApplicationRequest;
 import com.dhc.inspection_system.dto.CourtFeeQueryResult;
+import com.dhc.inspection_system.dto.ForwardApplicationRequest;
 import com.dhc.inspection_system.dto.LoginUserDTO;
 import com.dhc.inspection_system.dto.PaginatedResponse;
+import com.dhc.inspection_system.dto.SendForApprovalRequest;
 import com.dhc.inspection_system.service.CourtFeeService;
 import com.dhc.inspection_system.service.EmailQueueService;
 import com.dhc.inspection_system.service.InspectionAuditService;
 import com.dhc.inspection_system.service.SmsQueueService;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,12 +52,17 @@ class ApplicationServiceImplTest {
     private static final int DIARY_NO = 148426;
     private static final int DIARY_YR = 2026;
     private static final String OFFICER = "63035467";
+    private static final String APPROVER = "63039999";
+    private static final String ADMIN = "admin01";
 
     @Mock
     private ApplicationDAO applicationDAO;
 
     @Mock
     private LoginDAO loginDAO;
+
+    @Mock
+    private UploadHistoryDAO uploadHistoryDAO;
 
     @Mock
     private InspectionAuditService inspectionAuditService;
@@ -65,6 +78,9 @@ class ApplicationServiceImplTest {
 
     @Mock
     private JwtUtil jwtUtil;
+
+    @Mock
+    private HttpServletRequest httpServletRequest;
 
     @InjectMocks
     private ApplicationServiceImpl applicationService;
@@ -304,6 +320,314 @@ class ApplicationServiceImplTest {
                 DIARY_NO,
                 DIARY_YR,
                 cycleCutoff
+        );
+        verify(uploadHistoryDAO, never()).saveOfficeComment(
+                anyInt(),
+                anyInt(),
+                anyString(),
+                anyString()
+        );
+    }
+
+    @Test
+    void officerRejectDoesNotWriteDropboxCommentButKeepsAuditAndEmail() {
+        application.setStatus("P");
+        application.setAssigned(OFFICER);
+        application.setAssignedname("Inspection Officer");
+        application.setEmail("applicant@example.com");
+
+        ApproveRejectRequest rejectRequest = new ApproveRejectRequest();
+        rejectRequest.setDiaryNo(DIARY_NO);
+        rejectRequest.setDiaryYr(DIARY_YR);
+        rejectRequest.setRemarks("Officer rejection remarks");
+
+        when(applicationDAO.rejectApplicationByOfficer(
+                DIARY_NO,
+                DIARY_YR,
+                "Officer rejection remarks"
+        )).thenReturn(1);
+        when(inspectionAuditService.saveInspectionAuditLog(
+                eq(DIARY_NO),
+                eq(DIARY_YR),
+                anyString(),
+                eq(OFFICER)
+        )).thenReturn(1);
+
+        assertEquals(
+                1,
+                applicationService.rejectApplication("Bearer token", rejectRequest)
+        );
+
+        verify(applicationDAO).rejectApplicationByOfficer(
+                DIARY_NO,
+                DIARY_YR,
+                "Officer rejection remarks"
+        );
+        verify(inspectionAuditService).saveInspectionAuditLog(
+                eq(DIARY_NO),
+                eq(DIARY_YR),
+                anyString(),
+                eq(OFFICER)
+        );
+        verify(emailQueueService).queueRejectEmail(
+                DIARY_NO,
+                DIARY_YR,
+                "applicant@example.com",
+                "Officer rejection remarks"
+        );
+        verify(uploadHistoryDAO, never()).saveOfficeComment(
+                anyInt(),
+                anyInt(),
+                anyString(),
+                anyString()
+        );
+    }
+
+    @Test
+    void approverRejectWithRemarksWritesDropboxComment() {
+        LoginUserDTO approver = new LoginUserDTO();
+        approver.setRole("INSPECTIONAPPROVER");
+
+        when(jwtUtil.extractUsername("token")).thenReturn(APPROVER);
+        when(loginDAO.getUserByUsername(APPROVER)).thenReturn(approver);
+
+        ApplicationOwnershipInfo ownership = new ApplicationOwnershipInfo();
+        ownership.setStatus("T");
+        ownership.setApplappby(APPROVER);
+        when(applicationDAO.getStatusAndApplappby(DIARY_NO, DIARY_YR)).thenReturn(ownership);
+
+        application.setApplappbyname("Approver Name");
+
+        ApproveRejectRequest rejectRequest = new ApproveRejectRequest();
+        rejectRequest.setDiaryNo(DIARY_NO);
+        rejectRequest.setDiaryYr(DIARY_YR);
+        rejectRequest.setRemarks("Approver rejection remarks");
+
+        when(applicationDAO.rejectApplication(
+                DIARY_NO,
+                DIARY_YR,
+                "Approver rejection remarks"
+        )).thenReturn(1);
+        when(uploadHistoryDAO.saveOfficeComment(
+                DIARY_NO,
+                DIARY_YR,
+                "Approver rejection remarks",
+                APPROVER
+        )).thenReturn(1);
+        when(inspectionAuditService.saveInspectionAuditLog(
+                eq(DIARY_NO),
+                eq(DIARY_YR),
+                anyString(),
+                eq(APPROVER)
+        )).thenReturn(1);
+
+        assertEquals(
+                1,
+                applicationService.rejectApplication("Bearer token", rejectRequest)
+        );
+
+        verify(uploadHistoryDAO).saveOfficeComment(
+                DIARY_NO,
+                DIARY_YR,
+                "Approver rejection remarks",
+                APPROVER
+        );
+        verify(emailQueueService, never()).queueRejectEmail(
+                anyInt(),
+                anyInt(),
+                anyString(),
+                anyString()
+        );
+    }
+
+    @Test
+    void assignWithRemarksWritesDropboxComment() {
+        LoginUserDTO admin = new LoginUserDTO();
+        admin.setRole("INSPECTIONADMIN");
+
+        when(jwtUtil.extractUsername("token")).thenReturn(ADMIN);
+        when(loginDAO.getUserByUsername(ADMIN)).thenReturn(admin);
+
+        AssignApplicationRequest assignRequest = new AssignApplicationRequest();
+        assignRequest.setDiaryNo(DIARY_NO);
+        assignRequest.setDiaryYr(DIARY_YR);
+        assignRequest.setAssigned(OFFICER);
+        assignRequest.setAssignedname("Inspection Officer");
+        assignRequest.setRemarks("Assign remarks");
+
+        when(applicationDAO.assignApplication(assignRequest)).thenReturn(1);
+        when(uploadHistoryDAO.saveOfficeComment(
+                DIARY_NO,
+                DIARY_YR,
+                "Assign remarks",
+                ADMIN
+        )).thenReturn(1);
+        when(inspectionAuditService.saveEfilingLog(
+                eq(DIARY_NO),
+                eq(DIARY_YR),
+                anyString(),
+                eq(ADMIN),
+                anyString()
+        )).thenReturn(1);
+        when(httpServletRequest.getRemoteAddr()).thenReturn("127.0.0.1");
+
+        assertEquals(
+                1,
+                applicationService.assignApplication("Bearer token", assignRequest)
+        );
+
+        verify(uploadHistoryDAO).saveOfficeComment(
+                DIARY_NO,
+                DIARY_YR,
+                "Assign remarks",
+                ADMIN
+        );
+    }
+
+    @Test
+    void sendForApprovalWithRemarksWritesDropboxComment() {
+        SendForApprovalRequest sendRequest = new SendForApprovalRequest();
+        sendRequest.setDiaryNo(DIARY_NO);
+        sendRequest.setDiaryYr(DIARY_YR);
+        sendRequest.setApproverId(APPROVER);
+        sendRequest.setApproverName("Approver Name");
+        sendRequest.setRemarks("Send for approval remarks");
+
+        application.setStatus("N");
+        application.setAssigned(OFFICER);
+        application.setAssignedname("Inspection Officer");
+
+        LoginUserDTO officer = new LoginUserDTO();
+        officer.setRole("ONLINEINSPECTION");
+        officer.setFullName("Inspection Officer");
+        when(loginDAO.getUserByUsername(OFFICER)).thenReturn(officer);
+
+        when(applicationDAO.sendForApproval(
+                eq(sendRequest),
+                eq(OFFICER),
+                eq("Inspection Officer")
+        )).thenReturn(1);
+        when(uploadHistoryDAO.saveOfficeComment(
+                DIARY_NO,
+                DIARY_YR,
+                "Send for approval remarks",
+                OFFICER
+        )).thenReturn(1);
+        when(inspectionAuditService.saveInspectionAuditLog(
+                eq(DIARY_NO),
+                eq(DIARY_YR),
+                anyString(),
+                eq(OFFICER)
+        )).thenReturn(1);
+
+        assertEquals(
+                1,
+                applicationService.sendForApproval("Bearer token", sendRequest)
+        );
+
+        verify(uploadHistoryDAO).saveOfficeComment(
+                DIARY_NO,
+                DIARY_YR,
+                "Send for approval remarks",
+                OFFICER
+        );
+    }
+
+    @Test
+    void approveWithRemarksWritesDropboxComment() {
+        LoginUserDTO approver = new LoginUserDTO();
+        approver.setRole("INSPECTIONAPPROVER");
+
+        when(jwtUtil.extractUsername("token")).thenReturn(APPROVER);
+        when(loginDAO.getUserByUsername(APPROVER)).thenReturn(approver);
+
+        ApplicationOwnershipInfo ownership = new ApplicationOwnershipInfo();
+        ownership.setStatus("T");
+        ownership.setApplappby(APPROVER);
+        when(applicationDAO.getStatusAndApplappby(DIARY_NO, DIARY_YR)).thenReturn(ownership);
+
+        application.setApplappbyname("Approver Name");
+
+        ApproveRejectRequest approveRequest = new ApproveRejectRequest();
+        approveRequest.setDiaryNo(DIARY_NO);
+        approveRequest.setDiaryYr(DIARY_YR);
+        approveRequest.setRemarks("Approve remarks");
+
+        when(applicationDAO.approveApplication(
+                DIARY_NO,
+                DIARY_YR,
+                "Approve remarks"
+        )).thenReturn(1);
+        when(uploadHistoryDAO.saveOfficeComment(
+                DIARY_NO,
+                DIARY_YR,
+                "Approve remarks",
+                APPROVER
+        )).thenReturn(1);
+        when(inspectionAuditService.saveInspectionAuditLog(
+                eq(DIARY_NO),
+                eq(DIARY_YR),
+                anyString(),
+                eq(APPROVER)
+        )).thenReturn(1);
+
+        assertEquals(
+                1,
+                applicationService.approveApplication("Bearer token", approveRequest)
+        );
+
+        verify(uploadHistoryDAO).saveOfficeComment(
+                DIARY_NO,
+                DIARY_YR,
+                "Approve remarks",
+                APPROVER
+        );
+    }
+
+    @Test
+    void forwardWithRemarksWritesDropboxComment() {
+        LoginUserDTO approver = new LoginUserDTO();
+        approver.setRole("INSPECTIONAPPROVER");
+
+        when(jwtUtil.extractUsername("token")).thenReturn(APPROVER);
+        when(loginDAO.getUserByUsername(APPROVER)).thenReturn(approver);
+
+        ApplicationOwnershipInfo ownership = new ApplicationOwnershipInfo();
+        ownership.setStatus("T");
+        ownership.setApplappby(APPROVER);
+        when(applicationDAO.getStatusAndApplappby(DIARY_NO, DIARY_YR)).thenReturn(ownership);
+
+        ForwardApplicationRequest forwardRequest = new ForwardApplicationRequest();
+        forwardRequest.setDiaryNo(DIARY_NO);
+        forwardRequest.setDiaryYr(DIARY_YR);
+        forwardRequest.setApproverId("63038888");
+        forwardRequest.setApproverName("Next Approver");
+        forwardRequest.setRemarks("Forward remarks");
+
+        when(applicationDAO.forwardApplication(forwardRequest)).thenReturn(1);
+        when(uploadHistoryDAO.saveOfficeComment(
+                DIARY_NO,
+                DIARY_YR,
+                "Forward remarks",
+                APPROVER
+        )).thenReturn(1);
+        when(inspectionAuditService.saveInspectionAuditLog(
+                eq(DIARY_NO),
+                eq(DIARY_YR),
+                anyString(),
+                eq(APPROVER)
+        )).thenReturn(1);
+
+        assertEquals(
+                1,
+                applicationService.forwardApplication("Bearer token", forwardRequest)
+        );
+
+        verify(uploadHistoryDAO).saveOfficeComment(
+                DIARY_NO,
+                DIARY_YR,
+                "Forward remarks",
+                APPROVER
         );
     }
 }
